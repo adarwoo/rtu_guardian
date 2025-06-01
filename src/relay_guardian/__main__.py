@@ -5,7 +5,7 @@ from kivy.app import App
 
 from kivy.clock import Clock
 from kivy.properties import (
-    StringProperty, BooleanProperty
+    StringProperty, BooleanProperty, ListProperty
 )
 from kivy.logger import Logger
 from kivy.lang import Builder
