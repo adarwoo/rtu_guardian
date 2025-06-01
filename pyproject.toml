@@ -6,11 +6,11 @@ authors = [
     {name = "adarwoo",email = "44254473+adarwoo@users.noreply.github.com"}
 ]
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.13,<4"
 dependencies = [
     "kivy (>=2.3.1,<3.0.0)",
     "pymodbus[serial] (>=3.9.2,<4.0.0)",
-    "kivymd (>=1.2.0,<2.0.0)"
+    "kivymd2 (>=2.0.1,<3.0.0)",
 ]
 
 [tool.poetry]

@@ -1,0 +1,352 @@
+<RelayToggleButton@ToggleButton>:
+   orientation: 'vertical'
+   text: ''
+   background_normal: 'images/opened.png' # Image for unpressed state
+   background_down: 'images/closed.png'   # Image for pressed state
+   size_hint: None, None
+   height: '48dp'
+   width: '120dp'
+   padding: 10
+   spacing: 10
+   on_state: app.on_relay_set(self.modbus_coil, self.state == 'down')
+
+<AutoWidthTab@TabbedPanelItem>
+   width: self.texture_size[0]
+   padding: 10, 10
+   size_hint_x: None
+
+Screen:
+   name: 'Modbus Relay'
+   fullscreen: True
+   # Force the dropdown to remain in memory
+   __safe_id: [baudrate.__self__]
+
+   TabbedPanel:
+      id: tp
+      do_default_tab: False
+      tab_width: None
+
+      AutoWidthTab:
+         id: tab_control
+         text: 'Operation'
+
+         BoxLayout:
+            orientation: 'vertical'
+            padding: dp(10) # Added some padding to the BoxLayout
+            spacing: dp(10) # Added spacing between GridLayout and other content
+
+            GridLayout:
+               cols: 2
+               height: self.minimum_height
+               row_default_height: '32dp' # Set default height for rows
+               spacing: dp(5) # Spacing between grid cells
+
+               Label:
+                  text: 'Relay 1'
+               RelayToggleButton:
+                  modbus_coil: 0
+
+               Label:
+                  text: 'Relay 2'
+               RelayToggleButton:
+                  modbus_coil: 1
+                  height: 48
+
+               Label:
+                  text: 'Relay 3'
+               RelayToggleButton:
+                  modbus_coil: 2
+                  height: 48
+
+               Label:
+                  text: 'Running time:'
+               Label:
+                  id: 'running_time'
+                  text: app.running_time
+
+               Label:
+                  text: 'Relay 1 cycle count'
+               Label:
+                  id: 'relay_cycles_1'
+                  text: app.relay_cycle[0]
+
+               Label:
+                  text: 'Relay 2 cycle count'
+               Label:
+                  id: 'relay_cycles_2'
+                  text: app.relay_cycle[1]
+
+               Label:
+                  text: 'Relay 3 cycle count'
+               Label:
+                  id: 'relay_cycles_4'
+                  text: app.relay_cycle[2]
+
+               Label:
+                  text: 'Current line voltage'
+               Label:
+                  id: 'line_voltage'
+                  text: '-'
+
+               Label:
+                  text: 'Maximum measured voltage'
+               Label:
+                  id: 'voltage_max'
+                  text: '-'
+
+               Label:
+                  text: 'Minimum measured voltage'
+               Label:
+                  id: 'voltage_min'
+                  text: '-'
+
+               Label:
+                  text: 'EStop status'
+
+               BoxLayout:
+                  Label:
+                     id: 'estop_status'
+                     text: '-'
+                  Button:
+                     text: 'Reset'
+
+               Label:
+                  text: 'EStop caused by'
+               Label:
+                  id: 'estop_source'
+                  text: '-'
+
+               Label:
+                  text: 'EStop given fault code'
+               Label:
+                  id: 'estop_fault_code'
+                  text: '-'
+
+      AutoWidthTab:
+         id: tab_config
+         text: 'Configuration'
+
+         GridLayout:
+            cols: 2
+            Label:
+               text: 'Device Id'
+               size_hint_y: None
+               height: '32dp'
+            TextInput:
+               id: 'device_id'
+               text: '44'
+               multiline: False
+               size_hint_y: None
+               height: '32dp'
+               size_hint_x: None
+               width: '60dp'
+
+            Label:
+               text: 'Software version'
+               size_hint_y: None
+               height: '32dp'
+            Label:
+               size_hint_y: None
+               height: '32dp'
+               id: 'software_version'
+               text: '-'
+
+            Label:
+               text: 'Firmware version'
+               size_hint_y: None
+               height: '32dp'
+            Label:
+               id: 'firmware_version'
+               text: '-'
+               size_hint_y: None
+               height: '32dp'
+
+            Label:
+               text: 'Baud rate'
+               size_hint_y: None
+               height: '32dp'
+            BoxLayout:
+               Button:
+                  id: btn
+                  text: '-'
+                  size_hint_y: None
+                  height: '32dp'
+                  size_hint_x: None
+                  width: '120dp'
+                  on_release: baudrate.open(self)
+
+               Widget:
+                  on_parent: baudrate.dismiss()
+
+               DropDown:
+                  id: baudrate
+                  on_select: btn.text = 'Baud rate: {}'.format(args[1])
+                  text: '-'
+                  size_hint_y: None
+                  height: '32dp'
+                  Button:
+                     text: '300'
+                     on_release: baudrate.select('300')
+                     size_hint_y: None
+                     height: '32dp'
+                  Button:
+                     text: '600'
+                     on_release: baudrate.select('600')
+                     size_hint_y: None
+                     height: '32dp'
+                  Button:
+                     text: '1200'
+                     on_release: baudrate.select('1200')
+                     size_hint_y: None
+                     height: '32dp'
+                  Button:
+                     text: '2400'
+                     on_release: baudrate.select('2400')
+                     size_hint_y: None
+                     height: '32dp'
+                  Button:
+                     text: '4800'
+                     on_release: baudrate.select('4800')
+                     size_hint_y: None
+                     height: '32dp'
+                  Button:
+                     text: '9600'
+                     on_release: baudrate.select('9600')
+                     size_hint_y: None
+                     height: '32dp'
+                  Button:
+                     text: '19200'
+                     on_release: baudrate.select('19200')
+                     size_hint_y: None
+                     height: '32dp'
+                  Button:
+                     text: '38400'
+                     on_release: baudrate.select('38400')
+                     size_hint_y: None
+                     height: '32dp'
+                  Button:
+                     text: '57600'
+                     on_release: baudrate.select('57600')
+                     size_hint_y: None
+                     height: '32dp'
+                  Button:
+                     text: '115200'
+                     on_release: baudrate.select('115200')
+
+            Label:
+               text: 'Number of stop bits'
+               size_hint_y: None
+               height: '32dp'
+            BoxLayout:
+               ToggleButton:
+                  text: '1 Stop bit'
+                  group: 'stopbit'
+                  size_hint_y: None
+                  height: '32dp'
+                  size_hint_x: None
+                  width: '100dp'
+               ToggleButton:
+                  text: '2 stop bits'
+                  group: 'stopbit'
+                  size_hint_y: None
+                  height: '32dp'
+                  size_hint_x: None
+                  width: '100dp'
+
+            Label:
+               text: 'Parity'
+               size_hint_y: None
+               height: '32dp'
+               size_hint_y: None
+               height: '32dp'
+            BoxLayout:
+               ToggleButton:
+                  text: 'None'
+                  group: 'parity'
+                  size_hint_y: None
+                  height: '32dp'
+                  size_hint_x: None
+                  width: '60dp'
+               ToggleButton:
+                  text: 'Odd'
+                  group: 'parity'
+                  size_hint_y: None
+                  height: '32dp'
+                  size_hint_x: None
+                  width: '60dp'
+               ToggleButton:
+                  text: 'Even'
+                  group: 'parity'
+                  size_hint_y: None
+                  height: '32dp'
+                  size_hint_x: None
+                  width: '60dp'
+
+            Label:
+               text: 'Type of infeed voltage'
+               size_hint_y: None
+               height: '32dp'
+               size_hint_y: None
+               height: '32dp'
+            BoxLayout:
+               ToggleButton:
+                  text: 'AC 50Hz'
+                  group: 'infeed_type'
+                  size_hint_y: None
+                  height: '32dp'
+                  size_hint_x: None
+                  width: '80dp'
+               ToggleButton:
+                  text: 'AC 60Hz'
+                  group: 'infeed_type'
+                  size_hint_y: None
+                  height: '32dp'
+                  size_hint_x: None
+                  width: '80dp'
+               ToggleButton:
+                  text: 'DC'
+                  group: 'infeed_type'
+                  size_hint_y: None
+                  height: '32dp'
+                  size_hint_x: None
+                  width: '80dp'
+
+            Label:
+               text: 'Low voltage threshold'
+               size_hint_y: None
+               height: '32dp'
+            BoxLayout:
+               Slider:
+                  id: low_threshold
+                  step: 1
+                  min: 10
+                  max: 240
+                  on_value: high_threshold.value = max(min(250, self.value + 10), high_threshold.value)
+                  size_hint_y: None
+                  height: '32dp'
+               Label:
+                  size_hint_y: None
+                  height: '32dp'
+                  text: '{:.0f}'.format(low_threshold.value)
+                  size_hint_x: None
+                  width: '40dp'
+
+            Label:
+               text: 'High voltage threshold'
+               size_hint_y: None
+               height: '32dp'
+            BoxLayout:
+               Slider:
+                  size_hint_y: None
+                  height: '32dp'
+                  id: high_threshold
+                  step: 1
+                  min: 20
+                  max: 250
+                  on_value: low_threshold.value = min(max(10, self.value - 10), low_threshold.value)
+               Label:
+                  size_hint_y: None
+                  height: '32dp'
+                  text: '{:.0f}'.format(high_threshold.value)
+                  size_hint_x: None
+                  width: '40dp'

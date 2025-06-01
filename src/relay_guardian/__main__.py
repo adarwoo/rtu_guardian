@@ -1,10 +1,11 @@
 import json
 import asyncio
 
-from kivymd.app import MDApp  # <-- Use MDApp instead of App
+from kivy.app import App
+
 from kivy.clock import Clock
 from kivy.properties import (
-    StringProperty, NumericProperty, BooleanProperty, ObjectProperty
+    StringProperty, BooleanProperty
 )
 from kivy.logger import Logger
 from kivy.lang import Builder
@@ -13,6 +14,8 @@ from kivy.metrics import dp  # <-- For dp() in .kv
 from pymodbus.client import AsyncModbusSerialClient
 from pymodbus.exceptions import ModbusException
 from kivy.base import async_runTouchApp
+from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.togglebutton import ToggleButton
 
 CONFIG_FILE = 'config.json'
 
@@ -75,18 +78,34 @@ class ModbusRTUReader:
             Logger.info(f"Modbus RTU client failed to connect to {self.config['port']}.")
             return False
 
+    async def set_relay_status(self, relay_num, state):
+        if not self.connection_status:
+            return False
+
+        try:
+            response = await self.client.write_coil(relay_num, state, slave=44)
+
+            if response.isError():
+                self.status_message = f"Modbus Error: {response}"
+                self.current_value = "Error"
+            else:
+                Logger.info(f"Switched relay: {relay_num} to {'ON' if state else 'OFF'}")
+        except Exception as e:
+            Logger.error(f"Error whilst switching the relay: {e}")
+
     async def read_loop(self):
         self._running = True
         while self._running:
             if not self.connection_status:
                 await self.connect()
+
                 if not self.connection_status:
                     self.update_callback()
                     await asyncio.sleep(1)
                     continue
             try:
                 # Example: Read one coil at register_address
-                response = await self.client.read_coils(1, count=1, slave=44)
+                response = await self.client.read_coils(0, count=3, slave=44)
                 if response.isError():
                     self.status_message = f"Modbus Error: {response}"
                     self.current_value = "Error"
@@ -116,10 +135,11 @@ class ModbusRTUReader:
     def stop(self):
         self._running = False
 
-class ModbusReaderApp(MDApp):  # <-- Inherit from MDApp
+
+class ModbusReaderApp(App):
     # Status & Diagnostics
     running_time = StringProperty("0")
-    relay_cycles = StringProperty("0")
+    relay_cycle = [StringProperty("0"), StringProperty("0"), StringProperty("0")]
     live_voltage = StringProperty("0 V")
     voltage_max = StringProperty("0 V")
     voltage_min = StringProperty("0 V")
@@ -162,13 +182,14 @@ class ModbusReaderApp(MDApp):  # <-- Inherit from MDApp
 
     def build(self):
         self.title = "Modbus RTU Register Reader"
-        return Builder.load_file("modbusreader.kv")
+        return Builder.load_file("main.kv")
 
     def on_start(self):
         self.config = load_config()
         self.modbus_reader = ModbusRTUReader(self.config, self._update_ui_callback)
         self._modbus_task = asyncio.create_task(self.modbus_reader.read_loop())
-        Clock.schedule_interval(self.update_ui, 0.5)
+        # Kivy's tab width adjustment requires to reaval the layout
+        Clock.schedule_once(self.root.ids.tp.on_tab_width, 0.1)
 
     def _update_ui_callback(self):
         Clock.schedule_once(lambda dt: self.update_ui(), 0)
@@ -193,8 +214,12 @@ class ModbusReaderApp(MDApp):  # <-- Inherit from MDApp
     def toggle_locate(self, state):
         Logger.info(f"Locate toggled: {state}")
 
-    def toggle_relay(self, relay_num, state):
-        Logger.info(f"Relay {relay_num} toggled: {state}")
+    def on_relay_set(self, index, state):
+        Logger.info(f"Relay {index} toggled: {state}")
+        try:
+            asyncio.create_task(self.modbus_reader.set_relay_status(index, state))
+        except (ValueError, IndexError):
+            Logger.error(f"Invalid relay index format: {index}. Expected 'relay_X'.")
 
     def pulse_estop(self):
         Logger.info("Pulse EStop pressed")
