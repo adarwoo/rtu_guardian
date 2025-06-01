@@ -8,345 +8,382 @@
    width: '120dp'
    padding: 10
    spacing: 10
+   # Custom property to hold the Modbus coil address (0-indexed)
+   modbus_coil: -1
+   # Bind the button's state to the corresponding boolean in app.relay_states
+   # This makes the button's visual state reflect the actual Modbus coil state.
+   state: 'down' if app.relay_states[self.modbus_coil] else 'normal'
+   # When the button is pressed by the user, call the app's method
    on_state: app.on_relay_set(self.modbus_coil, self.state == 'down')
 
 <AutoWidthTab@TabbedPanelItem>
-   width: self.texture_size[0]
+   # Adjust width to fit text with some padding
+   width: self.texture_size[0] + dp(20)
    padding: 10, 10
    size_hint_x: None
 
-Screen:
-   name: 'Modbus Relay'
-   fullscreen: True
-   # Force the dropdown to remain in memory
-   __safe_id: [baudrate.__self__]
+BoxLayout:
+   orientation: 'vertical'
 
-   TabbedPanel:
-      id: tp
-      do_default_tab: False
-      tab_width: None
+   BoxLayout:
+      id: status_box
+      orientation: 'horizontal'
+      spacing: dp(16)
+      size_hint_x: None
+      size_hint_y: None
+      height: dp(48)
 
-      AutoWidthTab:
-         id: tab_control
-         text: 'Operation'
+      Image:
+         source: "images/arex_bubble.png"
+         size_hint_y: None
+         size_hint_x: None
+         width: dp(78)
+         height: dp(48)
+         halign: "left"
 
-         BoxLayout:
-            orientation: 'vertical'
-            padding: dp(10) # Added some padding to the BoxLayout
-            spacing: dp(10) # Added spacing between GridLayout and other content
+      Label:
+         text: "Relay Guardian"
+         halign: "center"
+         size_hint_x: None
+         width: self.texture_size[0] + dp(12)
+
+      Label:
+         text: "Product ID: {}".format(app.product_id)
+         theme_text_color: "Secondary"
+         halign: "center"
+         size_hint_x: None
+         width: self.texture_size[0] + dp(12)
+      Label:
+         text: "SW: {}".format(app.software_version)
+         theme_text_color: "Secondary"
+         halign: "center"
+         size_hint_x: None
+         width: self.texture_size[0] + dp(12)
+      Label:
+         text: "HW: {}".format(app.firmware_version)
+         theme_text_color: "Secondary"
+         halign: "center"
+         size_hint_x: None
+         width: self.texture_size[0] + dp(12)
+
+   Screen:
+      name: 'Modbus Relay'
+      fullscreen: True
+      # __safe_id is removed as it's not directly needed for the baudrate dropdown
+      # when it's accessed via its ID within the KV rules.
+
+      TabbedPanel:
+         id: tp
+         do_default_tab: False
+         tab_width: None
+
+         AutoWidthTab:
+            id: tab_control
+            text: 'Operation'
+
+            BoxLayout:
+               orientation: 'vertical'
+               padding: dp(10) # Added some padding to the BoxLayout
+               spacing: dp(10) # Added spacing between GridLayout and other content
+
+               GridLayout:
+                  cols: 2
+                  height: self.minimum_height
+                  row_default_height: '32dp' # Set default height for rows
+                  spacing: dp(5) # Spacing between grid cells
+
+                  Label:
+                     text: 'Relay 1'
+                  RelayToggleButton:
+                     modbus_coil: 0
+
+                  Label:
+                     text: 'Relay 2'
+                  RelayToggleButton:
+                     modbus_coil: 1
+                     height: 48
+
+                  Label:
+                     text: 'Relay 3'
+                  RelayToggleButton:
+                     modbus_coil: 2
+                     height: 48
+
+                  # --- Live Data Display Bindings ---
+                  Label:
+                     text: 'Running time:'
+                  Label:
+                     id: running_time_label
+                     text: app.running_time
+
+                  Label:
+                     text: 'Relay 1 cycle count'
+                  Label:
+                     id: relay_cycles_1
+                     text: str(app.relay_cycle[0])
+
+                  Label:
+                     text: 'Relay 2 cycle count'
+                  Label:
+                     id: relay_cycles_2
+                     text: str(app.relay_cycle[1])
+
+                  Label:
+                     text: 'Relay 3 cycle count'
+                  Label:
+                     id: relay_cycles_3
+                     text: str(app.relay_cycle[2])
+
+                  Label:
+                     text: 'Current line voltage'
+                  Label:
+                     id: line_voltage
+                     text: app.live_voltage # Binds to app.live_voltage
+
+                  Label:
+                     text: 'Maximum measured voltage'
+                  Label:
+                     id: voltage_max
+                     text: app.voltage_max # Binds to app.voltage_max
+
+                  Label:
+                     text: 'Minimum measured voltage'
+                  Label:
+                     id: voltage_min
+                     text: app.voltage_min # Binds to app.voltage_min
+
+                  Label:
+                     text: 'EStop status'
+                  BoxLayout:
+                     Label:
+                        id: estop_status
+                        text: app.estop_status # Binds to app.estop_status
+                     Button:
+                        text: 'Reset'
+                        on_release: app.reset_estop() # Calls the app method on button release
+
+                  Label:
+                     text: 'EStop caused by'
+                  Label:
+                     id: estop_source
+                     text: app.estop_source # Binds to app.estop_source
+
+                  Label:
+                     text: 'EStop given fault code'
+                  Label:
+                     id: estop_fault_code
+                     text: app.estop_fault_code # Binds to app.estop_fault_code
+
+         AutoWidthTab:
+            id: tab_config
+            text: 'Configuration'
 
             GridLayout:
                cols: 2
-               height: self.minimum_height
-               row_default_height: '32dp' # Set default height for rows
-               spacing: dp(5) # Spacing between grid cells
+               padding: dp(10)
+               spacing: dp(5)
+               row_default_height: '32dp'
+               row_force_default: True
 
                Label:
-                  text: 'Relay 1'
-               RelayToggleButton:
-                  modbus_coil: 0
+                  text: 'Device Id'
+               TextInput:
+                  id: device_id_input # Renamed ID to avoid clash with app.device_id property
+                  text: app.device_id # Binds the TextInput's text to app.device_id
+                  multiline: False
+                  size_hint_x: None
+                  width: '60dp'
+                  # Update app property when user presses Enter or loses focus
+                  on_text_validate: app.set_device_id(self.text)
+                  on_focus: if not self.focus: app.set_device_id(self.text)
 
                Label:
-                  text: 'Relay 2'
-               RelayToggleButton:
-                  modbus_coil: 1
-                  height: 48
+                  text: 'Software version'
+               Label:
+                  id: software_version
+                  text: app.software_version # Binds to app.software_version
 
                Label:
-                  text: 'Relay 3'
-               RelayToggleButton:
-                  modbus_coil: 2
-                  height: 48
+                  text: 'Firmware version'
+               Label:
+                  id: firmware_version
+                  text: app.firmware_version # Binds to app.firmware_version
 
                Label:
-                  text: 'Running time:'
-               Label:
-                  id: 'running_time'
-                  text: app.running_time
-
-               Label:
-                  text: 'Relay 1 cycle count'
-               Label:
-                  id: 'relay_cycles_1'
-                  text: app.relay_cycle[0]
-
-               Label:
-                  text: 'Relay 2 cycle count'
-               Label:
-                  id: 'relay_cycles_2'
-                  text: app.relay_cycle[1]
-
-               Label:
-                  text: 'Relay 3 cycle count'
-               Label:
-                  id: 'relay_cycles_4'
-                  text: app.relay_cycle[2]
-
-               Label:
-                  text: 'Current line voltage'
-               Label:
-                  id: 'line_voltage'
-                  text: '-'
-
-               Label:
-                  text: 'Maximum measured voltage'
-               Label:
-                  id: 'voltage_max'
-                  text: '-'
-
-               Label:
-                  text: 'Minimum measured voltage'
-               Label:
-                  id: 'voltage_min'
-                  text: '-'
-
-               Label:
-                  text: 'EStop status'
-
+                  text: 'Baud rate'
                BoxLayout:
+                  Button:
+                     id: baud_rate_btn # Renamed for clarity
+                     text: app.baud_rate # Binds button text to app.baud_rate
+                     size_hint_x: None
+                     width: '120dp'
+                     on_release: baudrate_dropdown.open(self) # Opens the dropdown
+
+                  Widget: # This widget helps dismiss the dropdown if clicked outside
+                     on_parent: baudrate_dropdown.dismiss()
+
+                  DropDown:
+                     id: baudrate_dropdown # Renamed for clarity
+                     # When an item is selected from the dropdown
+                     on_select:
+                        app.set_baud_rate(args[1]) # Call app method to update property
+                        baud_rate_btn.text = args[1] # Update the display button's text
+                     Button:
+                        text: '300'
+                        on_release: baudrate_dropdown.select('300')
+                        size_hint_y: None
+                        height: '32dp'
+                     Button:
+                        text: '600'
+                        on_release: baudrate_dropdown.select('600')
+                        size_hint_y: None
+                        height: '32dp'
+                     Button:
+                        text: '1200'
+                        on_release: baudrate_dropdown.select('1200')
+                        size_hint_y: None
+                        height: '32dp'
+                     Button:
+                        text: '2400'
+                        on_release: baudrate_dropdown.select('2400')
+                        size_hint_y: None
+                        height: '32dp'
+                     Button:
+                        text: '4800'
+                        on_release: baudrate_dropdown.select('4800')
+                        size_hint_y: None
+                        height: '32dp'
+                     Button:
+                        text: '9600'
+                        on_release: baudrate_dropdown.select('9600')
+                        size_hint_y: None
+                        height: '32dp'
+                     Button:
+                        text: '19200'
+                        on_release: baudrate_dropdown.select('19200')
+                        size_hint_y: None
+                        height: '32dp'
+                     Button:
+                        text: '38400'
+                        on_release: baudrate_dropdown.select('38400')
+                        size_hint_y: None
+                        height: '32dp'
+                     Button:
+                        text: '57600'
+                        on_release: baudrate_dropdown.select('57600')
+                        size_hint_y: None
+                        height: '32dp'
+                     Button:
+                        text: '115200'
+                        on_release: baudrate_dropdown.select('115200')
+                        size_hint_y: None
+                        height: '32dp'
+
                   Label:
-                     id: 'estop_status'
-                     text: '-'
-                  Button:
-                     text: 'Reset'
+                     text: 'Number of stop bits'
+                  BoxLayout:
+                     ToggleButton:
+                        text: '1 Stop bit'
+                        group: 'stopbit'
+                        size_hint_x: None
+                        width: '100dp'
+                        # Binds the toggle button's state to app.stop_bits
+                        state: 'down' if app.stop_bits == '1' else 'normal'
+                        # Calls app method when toggled
+                        on_state: if self.state == 'down': app.set_stop_bits('1')
+                     ToggleButton:
+                        text: '2 stop bits'
+                        group: 'stopbit'
+                        size_hint_x: None
+                        width: '100dp'
+                        state: 'down' if app.stop_bits == '2' else 'normal'
+                        on_state: if self.state == 'down': app.set_stop_bits('2')
 
-               Label:
-                  text: 'EStop caused by'
-               Label:
-                  id: 'estop_source'
-                  text: '-'
+                  Label:
+                     text: 'Parity'
+                  BoxLayout:
+                     ToggleButton:
+                        text: 'None'
+                        group: 'parity'
+                        size_hint_x: None
+                        width: '60dp'
+                        # Binds to 'N' for None as used in ModbusRTUReader config
+                        state: 'down' if app.parity == 'N' else 'normal'
+                        on_state: if self.state == 'down': app.set_parity('None')
+                     ToggleButton:
+                        text: 'Odd'
+                        group: 'parity'
+                        size_hint_x: None
+                        width: '60dp'
+                        state: 'down' if app.parity == 'O' else 'normal'
+                        on_state: if self.state == 'down': app.set_parity('Odd')
+                     ToggleButton:
+                        text: 'Even'
+                        group: 'parity'
+                        size_hint_x: None
+                        width: '60dp'
+                        state: 'down' if app.parity == 'E' else 'normal'
+                        on_state: if self.state == 'down': app.set_parity('Even')
 
-               Label:
-                  text: 'EStop given fault code'
-               Label:
-                  id: 'estop_fault_code'
-                  text: '-'
+                  Label:
+                     text: 'Type of infeed voltage'
+                  BoxLayout:
+                     ToggleButton:
+                        text: 'AC 50Hz'
+                        group: 'infeed_type'
+                        size_hint_x: None
+                        width: '80dp'
+                        state: 'down' if app.supply_voltage_type == 'AC 50Hz' else 'normal'
+                        on_state: if self.state == 'down': app.set_supply_voltage_type('AC 50Hz')
+                     ToggleButton:
+                        text: 'AC 60Hz'
+                        group: 'infeed_type'
+                        size_hint_x: None
+                        width: '80dp'
+                        state: 'down' if app.supply_voltage_type == 'AC 60Hz' else 'normal'
+                        on_state: if self.state == 'down': app.set_supply_voltage_type('AC 60Hz')
+                     ToggleButton:
+                        text: 'DC'
+                        group: 'infeed_type'
+                        size_hint_x: None
+                        width: '80dp'
+                        state: 'down' if app.supply_voltage_type == 'DC' else 'normal'
+                        on_state: if self.state == 'down': app.set_supply_voltage_type('DC')
 
-      AutoWidthTab:
-         id: tab_config
-         text: 'Configuration'
+                  Label:
+                     text: 'Low voltage threshold'
+                  BoxLayout:
+                     Slider:
+                        id: low_threshold
+                        step: 1
+                        min: 10
+                        max: 240
+                        # Binds slider value to app.low_alarm (converted to float)
+                        value: float(app.low_alarm)
+                        # Updates app property and adjusts high_threshold on value change
+                        on_value:
+                           app.set_low_alarm(str(int(self.value)))
+                           high_threshold.value = max(min(250, self.value + 10), high_threshold.value)
+                     Label:
+                        text: '{:.0f}'.format(low_threshold.value)
+                        size_hint_x: None
+                        width: '40dp'
 
-         GridLayout:
-            cols: 2
-            Label:
-               text: 'Device Id'
-               size_hint_y: None
-               height: '32dp'
-            TextInput:
-               id: 'device_id'
-               text: '44'
-               multiline: False
-               size_hint_y: None
-               height: '32dp'
-               size_hint_x: None
-               width: '60dp'
-
-            Label:
-               text: 'Software version'
-               size_hint_y: None
-               height: '32dp'
-            Label:
-               size_hint_y: None
-               height: '32dp'
-               id: 'software_version'
-               text: '-'
-
-            Label:
-               text: 'Firmware version'
-               size_hint_y: None
-               height: '32dp'
-            Label:
-               id: 'firmware_version'
-               text: '-'
-               size_hint_y: None
-               height: '32dp'
-
-            Label:
-               text: 'Baud rate'
-               size_hint_y: None
-               height: '32dp'
-            BoxLayout:
-               Button:
-                  id: btn
-                  text: '-'
-                  size_hint_y: None
-                  height: '32dp'
-                  size_hint_x: None
-                  width: '120dp'
-                  on_release: baudrate.open(self)
-
-               Widget:
-                  on_parent: baudrate.dismiss()
-
-               DropDown:
-                  id: baudrate
-                  on_select: btn.text = 'Baud rate: {}'.format(args[1])
-                  text: '-'
-                  size_hint_y: None
-                  height: '32dp'
-                  Button:
-                     text: '300'
-                     on_release: baudrate.select('300')
-                     size_hint_y: None
-                     height: '32dp'
-                  Button:
-                     text: '600'
-                     on_release: baudrate.select('600')
-                     size_hint_y: None
-                     height: '32dp'
-                  Button:
-                     text: '1200'
-                     on_release: baudrate.select('1200')
-                     size_hint_y: None
-                     height: '32dp'
-                  Button:
-                     text: '2400'
-                     on_release: baudrate.select('2400')
-                     size_hint_y: None
-                     height: '32dp'
-                  Button:
-                     text: '4800'
-                     on_release: baudrate.select('4800')
-                     size_hint_y: None
-                     height: '32dp'
-                  Button:
-                     text: '9600'
-                     on_release: baudrate.select('9600')
-                     size_hint_y: None
-                     height: '32dp'
-                  Button:
-                     text: '19200'
-                     on_release: baudrate.select('19200')
-                     size_hint_y: None
-                     height: '32dp'
-                  Button:
-                     text: '38400'
-                     on_release: baudrate.select('38400')
-                     size_hint_y: None
-                     height: '32dp'
-                  Button:
-                     text: '57600'
-                     on_release: baudrate.select('57600')
-                     size_hint_y: None
-                     height: '32dp'
-                  Button:
-                     text: '115200'
-                     on_release: baudrate.select('115200')
-
-            Label:
-               text: 'Number of stop bits'
-               size_hint_y: None
-               height: '32dp'
-            BoxLayout:
-               ToggleButton:
-                  text: '1 Stop bit'
-                  group: 'stopbit'
-                  size_hint_y: None
-                  height: '32dp'
-                  size_hint_x: None
-                  width: '100dp'
-               ToggleButton:
-                  text: '2 stop bits'
-                  group: 'stopbit'
-                  size_hint_y: None
-                  height: '32dp'
-                  size_hint_x: None
-                  width: '100dp'
-
-            Label:
-               text: 'Parity'
-               size_hint_y: None
-               height: '32dp'
-               size_hint_y: None
-               height: '32dp'
-            BoxLayout:
-               ToggleButton:
-                  text: 'None'
-                  group: 'parity'
-                  size_hint_y: None
-                  height: '32dp'
-                  size_hint_x: None
-                  width: '60dp'
-               ToggleButton:
-                  text: 'Odd'
-                  group: 'parity'
-                  size_hint_y: None
-                  height: '32dp'
-                  size_hint_x: None
-                  width: '60dp'
-               ToggleButton:
-                  text: 'Even'
-                  group: 'parity'
-                  size_hint_y: None
-                  height: '32dp'
-                  size_hint_x: None
-                  width: '60dp'
-
-            Label:
-               text: 'Type of infeed voltage'
-               size_hint_y: None
-               height: '32dp'
-               size_hint_y: None
-               height: '32dp'
-            BoxLayout:
-               ToggleButton:
-                  text: 'AC 50Hz'
-                  group: 'infeed_type'
-                  size_hint_y: None
-                  height: '32dp'
-                  size_hint_x: None
-                  width: '80dp'
-               ToggleButton:
-                  text: 'AC 60Hz'
-                  group: 'infeed_type'
-                  size_hint_y: None
-                  height: '32dp'
-                  size_hint_x: None
-                  width: '80dp'
-               ToggleButton:
-                  text: 'DC'
-                  group: 'infeed_type'
-                  size_hint_y: None
-                  height: '32dp'
-                  size_hint_x: None
-                  width: '80dp'
-
-            Label:
-               text: 'Low voltage threshold'
-               size_hint_y: None
-               height: '32dp'
-            BoxLayout:
-               Slider:
-                  id: low_threshold
-                  step: 1
-                  min: 10
-                  max: 240
-                  on_value: high_threshold.value = max(min(250, self.value + 10), high_threshold.value)
-                  size_hint_y: None
-                  height: '32dp'
-               Label:
-                  size_hint_y: None
-                  height: '32dp'
-                  text: '{:.0f}'.format(low_threshold.value)
-                  size_hint_x: None
-                  width: '40dp'
-
-            Label:
-               text: 'High voltage threshold'
-               size_hint_y: None
-               height: '32dp'
-            BoxLayout:
-               Slider:
-                  size_hint_y: None
-                  height: '32dp'
-                  id: high_threshold
-                  step: 1
-                  min: 20
-                  max: 250
-                  on_value: low_threshold.value = min(max(10, self.value - 10), low_threshold.value)
-               Label:
-                  size_hint_y: None
-                  height: '32dp'
-                  text: '{:.0f}'.format(high_threshold.value)
-                  size_hint_x: None
-                  width: '40dp'
+                  Label:
+                     text: 'High voltage threshold'
+                  BoxLayout:
+                     Slider:
+                        id: high_threshold
+                        step: 1
+                        min: 20
+                        max: 250
+                        # Binds slider value to app.upper_alarm (converted to float)
+                        value: float(app.upper_alarm)
+                        # Updates app property and adjusts low_threshold on value change
+                        on_value:
+                           app.set_upper_alarm(str(int(self.value)))
+                           low_threshold.value = min(max(10, self.value - 10), low_threshold.value)
+                     Label:
+                        text: '{:.0f}'.format(high_threshold.value)
+                        size_hint_x: None
+                        width: '40dp'
