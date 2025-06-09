@@ -55,6 +55,9 @@ class ModbusRTUReader:
         self.client = None
         self._running = False
 
+        # Default values for Modbus configuration
+        default_relay_config = {"disabled": False, "default_position": False, "inverted": False, "mode_on_fault": "off", "debounce_time": 0}
+
         # Internal attributes to hold Modbus data, to be updated by read_loop
         self._connection_status = False
         self._status_message = "Disconnected"
@@ -71,6 +74,8 @@ class ModbusRTUReader:
         self._firmware_version_value = "-"
         self._product_id = "-"
         self._relay_cycle_counts = [0, 0, 0] # Example: holding registers for cycle counts
+        self._relay_diagnostic = [0, 0, 0] # Example: holding registers for diagnostic information
+        self._device_relay_config = [default_relay_config.copy() for _ in range(3)] # Default relay config for 3 relays
 
     # Properties to expose internal data for ModbusReaderApp
     @property
@@ -197,6 +202,58 @@ class ModbusRTUReader:
         finally:
             self.update_callback() # Trigger UI update after attempt
 
+    async def read_config(self):
+        """Read the current Modbus configuration from the device."""
+        if not self._connection_status:
+            Logger.warning("Not connected to Modbus. Attempting to connect...")
+            if not await self.connect():
+                Logger.error("Failed to establish Modbus connection for reading config.")
+                return False
+
+        try:
+            # Example: Read a specific register for configuration
+            response = await self.client.read_holding_registers(0, count=10, slave=self.config['unit_id'])
+
+            if response.isError():
+                self._status_message = f"Modbus Error: {response}"
+                Logger.error(f"Modbus read config error: {response}")
+                return False
+
+            # Process the response as needed
+            # For example, update internal state or Kivy properties
+            Logger.info(f"Configuration read successfully: {response.registers}")
+            self._status_message = "Configuration read successfully"
+
+            decoder = BinaryPayloadDecoder.fromRegisters(
+                response.registers,
+                byteorder=Endian.BIG,
+                wordorder=Endian.BIG
+            )
+
+            self._device_address = decoder.decode_16bit_uint()
+            self._device_baud_rate = [300, 600, 1200, 2400, 4800, 9600, 19200, 38400, 57600, 115200][decoder.decode_16bit_uint()]  # Example: baud rate
+            self._device_parity = ["None", "Even", "Odd"][decoder.decode_8bit_uint()]  # Example: parity
+            self._device_stop_bits = decoder.decode_8bit_uint()  # Example: stop bits
+            decoder.skip_bytes(4)  # Skip reserved bytes
+            self._device_infeed_voltage_type = ["AC 50Hz", "AC 60Hz", "DC"][decoder.decode_8bit_uint()]  # Example: voltage type
+            self._device_low_alarm = decoder.decode_16bit_uint()  # Example: low alarm threshold
+            self._device_upper_alarm = decoder.decode_16bit_uint()  # Example: upper alarm threshold
+            decoder.skip_bytes(10)  # Skip reserved bytes
+
+            for i in range(3):  # Assuming 3 relays
+                self._device_relay_config[i]['debounce_time'] = decoder.decode_8bit_uint()
+                relay_config = decoder.decode_8bit_uint()
+                self._device_relay_config[i]['disabled'] = relay_config & 1
+                self._device_relay_config[i]['default_position'] = relay_config & 2
+                self._device_relay_config[i]['inverted'] = relay_config & 4
+                self._device_relay_config[i]['mode_on_fault'] = ["off", "on"][relay_config & 8]
+
+            return True
+        except Exception as e:
+            Logger.error(f"Error reading Modbus configuration: {e}")
+            self._status_message = f"Config read error: {e}"
+            return False
+
     async def read_loop(self):
         self._running = True
         while self._running:
@@ -232,13 +289,12 @@ class ModbusRTUReader:
                 # Register 108: Firmware Version
                 # Registers 110-112: Relay Cycle Counts (for relay 0, 1, 2)
 
-                response = await self.client.read_holding_registers(0, count=3, slave=self.config['unit_id'])
+                response = await self.client.read_input_registers(0, count=33, slave=self.config['unit_id'])
 
                 if response.isError():
                     Logger.error(f"Modbus Error reading registers: {response}")
                     self._status_message = f"Modbus Error: {response}"
                 else:
-
                     decoder = BinaryPayloadDecoder.fromRegisters(
                         response.registers,
                         byteorder=Endian.BIG,
@@ -248,6 +304,23 @@ class ModbusRTUReader:
                     self._product_id = f"0x{decoder.decode_16bit_uint():04x}"
                     self._software_version_value = f"v{decoder.decode_8bit_uint()}.{decoder.decode_8bit_uint()}"
                     self._firmware_version_value = f"v{decoder.decode_8bit_uint()}.{decoder.decode_8bit_uint()}"
+                    self._number_of_relays = decoder.decode_16bit_uint()  # Example: number of relays
+                    decoder.skip_bytes(8)  # Skip reserved bytes
+                    self._current_status = decoder.decode_16bit_uint()  # Example: current status code
+                    self._running_time_value = decoder.decode_32bit_uint()  # Running time in seconds
+                    self._live_voltage_ac = decoder.decode_16bit_uint() * 0.1  # Live voltage
+                    self._live_voltage_dc = decoder.decode_16bit_uint() * 0.1  # Live voltage
+                    self._estop_root_cause = decoder.decode_16bit_uint()  # EStop root cause
+                    self._estop_fault_code_value = decoder.decode_16bit_uint()  # EStop fault code
+                    self._infeed_lowest_voltage = decoder.decode_16bit_uint() * 0.1  # Infeed min voltage
+                    self._infeed_highest_voltage = decoder.decode_16bit_uint() * 0.1  # Infeed max voltage
+                    decoder.skip_bytes(14)  # Skip reserved bytes
+                    self._relay_diagnostic[0] = decoder.decode_16bit_uint()  # Relay 0 cycle count
+                    self._relay_cycle_counts[0] = decoder.decode_32bit_uint()  # Relay 0 cycle count
+                    self._relay_diagnostic[1] = decoder.decode_16bit_uint()  # Relay 0 cycle count
+                    self._relay_cycle_counts[1] = decoder.decode_32bit_uint()  # Relay 1 cycle count
+                    self._relay_diagnostic[2] = decoder.decode_16bit_uint()  # Relay 0 cycle count
+                    self._relay_cycle_counts[2] = decoder.decode_32bit_uint()  # Relay 2 cycle count
 
                 response = await self.client.read_holding_registers(0x10, count=8, slave=self.config['unit_id'])
 
