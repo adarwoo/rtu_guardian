@@ -254,6 +254,68 @@ class ModbusRTUReader:
             self._status_message = f"Config read error: {e}"
             return False
 
+class ModbusRTUReader:
+    # Existing code...
+
+    async def trigger_estop(self):
+        """Trigger the EStop by writing to the control register at address 40101."""
+        if not self._connection_status:
+            Logger.warning("Not connected to Modbus. Attempting to connect...")
+            if not await self.connect():
+                Logger.error("Failed to establish Modbus connection for triggering EStop.")
+                return False
+
+        try:
+            response = await self.client.write_register(0x0064, 1, slave=self.config['unit_id'])
+            if response.isError():
+                Logger.error(f"Modbus Error triggering EStop: {response}")
+                self._status_message = f"Modbus Error: {response}"
+                return False
+            Logger.info("EStop triggered successfully.")
+            self._status_message = "EStop triggered"
+            return True
+        except Exception as e:
+            Logger.error(f"Error triggering EStop: {e}")
+            self._status_message = f"EStop trigger error: {e}"
+            return False
+
+    async def write_register(self, address, value, description):
+        """Generic method to write to a Modbus register."""
+        if not self._connection_status:
+            Logger.warning(f"Not connected to Modbus. Attempting to connect for {description}...")
+            if not await self.connect():
+                Logger.error(f"Failed to establish Modbus connection for {description}.")
+                return False
+
+        try:
+            response = await self.client.write_register(address, value, slave=self.config['unit_id'])
+            if response.isError():
+                Logger.error(f"Modbus Error during {description}: {response}")
+                self._status_message = f"Modbus Error: {response}"
+                return False
+            Logger.info(f"{description} successfully.")
+            self._status_message = f"{description} completed"
+            return True
+        except Exception as e:
+            Logger.error(f"Error during {description}: {e}")
+            self._status_message = f"{description} error: {e}"
+            return False
+
+    async def trigger_estop(self):
+        """Trigger the EStop."""
+        return await self.write_register(0x0064, 1, "Trigger EStop")
+
+    async def reset_measurements(self):
+        """Reset measurements."""
+        return await self.write_register(0x0065, 0xAA55, "Reset Measurements")
+
+    async def reset_to_factory_defaults(self):
+        """Reset configuration to factory defaults and reboot."""
+        return await self.write_register(0x0066, 0xAA55, "Reset to Factory Defaults")
+
+    async def reset_device(self):
+        """Reset the device."""
+
     async def read_loop(self):
         self._running = True
         while self._running:
