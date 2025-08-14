@@ -1,0 +1,115 @@
+Screen {
+    align: center middle;
+}
+
+#status-bar {
+    background: #303030;
+    color: white;
+    padding: 1 2;
+    text-style: bold;
+    height: auto;
+}
+
+.config-dialog {
+   background: $panel;
+   border: round $primary;
+   width: 50%;
+   min-width: 30;
+   height: 80%;
+}
+
+.config-dialog Grid {
+   align: center middle;
+   grid-size: 2;
+   width: 90%;
+   height: auto;
+   grid-columns: auto 30;
+   margin-bottom: 1;
+}
+
+.select-container {
+   align: center middle;
+   height: 40%;
+}
+
+.dialog-select-label {
+   text-align: right;
+   width: 16;
+   padding: 1 2;
+}
+
+.dialog-select {
+   min-width: 20;
+   max-width: 40;
+}
+
+.dialog-select-container {
+   align: center middle;
+   width: 90%;
+}
+
+.dialog-checkbox {
+   width: auto;
+   padding: 0 2;
+}
+
+.dialog-checkbox-container {
+   align: center middle;
+}
+
+.dialog-buttons Button {
+   margin-left: 2;
+   margin-right: 2;
+}
+
+.dialog-buttons {
+   align: center bottom;
+}
+
+RelayWidget {
+   background: $boost;
+   height: 13;
+   width: auto;
+   margin: 1;
+   min-width: 90;
+   border: round $primary;
+   padding: 0;
+}
+
+.relay-actions {
+   width: auto;
+   height: 100%;
+   background: brown;
+   padding: 0 2;
+}
+
+.relay-actions Button {
+   width: 20;
+   margin: 1 1;
+}
+
+.relay-opens-on {
+   border: round $secondary;
+   padding: 0 1;
+   width: auto;
+}
+
+#relay-scroll {
+   border: inner green;
+}
+
+.relay-filters {
+   width: auto;
+   border: round $secondary;
+   grid-size: 2;
+   grid-columns: auto auto;
+}
+
+.relay-filters Label {
+   padding: 1 2;
+   width: 30;
+}
+
+.relay-filters Select {
+   width: 20;
+}

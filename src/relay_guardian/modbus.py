@@ -3,7 +3,7 @@ import asyncio
 import functools
 import threading
 
-from kivy.logger import Logger
+from logging import Logger
 
 from pymodbus.client import AsyncModbusSerialClient
 from pymodbus.exceptions import ModbusException

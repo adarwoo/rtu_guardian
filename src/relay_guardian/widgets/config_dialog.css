@@ -1,0 +1,7 @@
+ConfigDialog {
+   width: 50;
+   max-width: 40%;
+   margin: 4 8;
+   background: $panel;
+   border: round $primary;
+}
