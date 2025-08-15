@@ -6,7 +6,7 @@ from textual import events
 
 from .config import config
 
-from .widgets.config import ConfigDialog, ConfigDialogClosed
+from .widgets.config_dialog import ConfigDialog, ConfigDialogClosed
 from .widgets.statusbar import StatusBar
 from .widgets.relay_device import RelayDeviceWidget
 
@@ -19,12 +19,12 @@ class RelayGuardian(App):
 
     BINDINGS = [
         ("q", "quit",     "Quit"),
-        ("s", "save",     "Save config"),
-        ("S", "scan",     "Scan"),
-        ("i", "id",       "Set device ID"),
-        ("l", "locate",   "Locate"),
+        ("ctrl+s", "save", "Save config"),
+        ("s", "scan",     "Scan"),
         ("r", "recovery", "Recovery mode"),
         ("c", "config",   "Configuration"),
+        ("+", "add",      "Add device"),
+        ("-", "remove",   "Remove device"),
     ]
 
     # When this changes, refresh footer/bindings automatically
@@ -69,6 +69,42 @@ class RelayGuardian(App):
 
     async def action_config(self):
         await self.push_screen(ConfigDialog())
+
+    async def action_recovery(self):
+        from .widgets.recovery_dialog import RecoveryDialog
+        await self.push_screen(RecoveryDialog())
+
+    async def action_add(self):
+        from .widgets.add_device_dialog import AddDeviceDialog
+        await self.push_screen(AddDeviceDialog())
+
+    async def action_scan(self):
+        from .widgets.scan_dialog import ScanState, ScanDialog
+        scan_results = {
+            44: ScanState.FOUND,
+            43: ScanState.PRESUMED,
+            78: ScanState.NOT_FOUND,
+            100: ScanState.UNKNOWN,
+            1: ScanState.NOT_FOUND,
+            2: ScanState.NOT_FOUND,
+            3: ScanState.NOT_FOUND,
+            4: ScanState.NOT_FOUND,
+            5: ScanState.NOT_FOUND,
+            6: ScanState.NOT_FOUND,
+            7: ScanState.NOT_FOUND,
+            8: ScanState.NOT_FOUND,
+            9: ScanState.NOT_FOUND,
+            10: ScanState.NOT_FOUND,
+            11: ScanState.NOT_FOUND,
+            12: ScanState.NOT_FOUND,
+            13: ScanState.NOT_FOUND,
+            14: ScanState.NOT_FOUND,
+            15: ScanState.NOT_FOUND,
+            18: ScanState.INFIRMED,
+            19: ScanState.CONFIRMED
+        }  # {id: ScanState}
+
+        await self.push_screen(ScanDialog(scan_results=scan_results))
 
     async def on_config_dialog_closed(self, message: ConfigDialogClosed):
         # Do whatever you need when the dialog closes

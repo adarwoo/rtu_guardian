@@ -1,6 +1,5 @@
-from textual.widgets import DataTable, SelectionList
-from textual.containers import HorizontalGroup
-from textual.reactive import reactive
+from textual.widgets import DataTable, Button
+from textual.containers import HorizontalGroup, Vertical
 
 from .static_status_list import StaticStatusList
 
@@ -18,7 +17,9 @@ ROWS = [
 class InfoWidget(HorizontalGroup):
 
     def compose(self):
-        yield DataTable(show_header=False, show_cursor=False)
+        with Vertical():
+            yield DataTable(show_header=False, show_cursor=False)
+            yield Button("Identify")
         yield StaticStatusList([
             "Relay fault",
             "Infeed polarity",

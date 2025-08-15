@@ -1,0 +1,24 @@
+#recovery-dialog {
+   background: $panel;
+   border: round $primary;
+   align: center middle;
+   width: 100;
+   min-height: 20;
+   height: 70%;
+
+   #recovery-info {
+      width: auto;
+      margin: 1 8;
+      text-align: left;
+   }
+
+   #cancel {
+      width: auto;
+      margin: 1 8;
+      text-align: left;
+   }
+
+   LoadingIndicator {
+      height: 1;
+   }
+}

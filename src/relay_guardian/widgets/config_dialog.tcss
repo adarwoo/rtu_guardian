@@ -1,0 +1,51 @@
+.config-dialog {
+   background: $panel;
+   border: round $primary;
+   align: center middle;
+   width: 80;
+   max-height: 28;
+   height: 80%;
+
+   Grid {
+      align: center middle;
+      grid-size: 2;
+      width: 90%;
+      height: auto;
+      grid-columns: auto 30;
+      margin-bottom: 1;
+   }
+}
+
+.dialog-select-label {
+   text-align: right;
+   width: 16;
+   padding: 1 2;
+}
+
+.dialog-select {
+   min-width: 20;
+   max-width: 40;
+}
+
+.dialog-select-container {
+   align: center middle;
+   width: 90%;
+}
+
+.dialog-checkbox {
+   width: auto;
+   padding: 0 2;
+}
+
+.dialog-checkbox-container {
+   align: center middle;
+}
+
+.dialog-buttons Button {
+   margin-left: 2;
+   margin-right: 2;
+}
+
+.dialog-buttons {
+   align: center bottom;
+}
