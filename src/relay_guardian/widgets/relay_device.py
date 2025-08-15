@@ -4,7 +4,7 @@ from textual.containers import VerticalGroup
 
 from .infeed import InfeedWidget
 from .info import InfoWidget
-from .relay import RelayWidget
+from .relay import RelayWidget, RelaysWidget
 from .estop import EStopWidget
 
 
@@ -19,6 +19,8 @@ class RelayDeviceWidget(TabPane):
                 yield InfoWidget()
             with TabPane("Infeed"):
                 yield InfeedWidget()
+            with TabPane("All relays"):
+                yield RelaysWidget()
             with TabPane("Relay 1"):
                 yield RelayWidget(1)
             with TabPane("Relay 2"):

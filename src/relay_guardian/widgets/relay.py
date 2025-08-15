@@ -1,6 +1,6 @@
 from textual.containers import Container
-from textual.widgets import Static, Button, Label, Checkbox, Input, DataTable
-from textual.containers import HorizontalGroup, Vertical, Grid, VerticalGroup
+from textual.widgets import Static, Button, Label, Rule, DataTable, Switch
+from textual.containers import HorizontalGroup, Vertical, Grid, VerticalGroup, Horizontal
 from textual.reactive import reactive
 
 ROWS = [
@@ -55,3 +55,28 @@ class RelayWidget(HorizontalGroup):
         table = self.query_one(DataTable)
         table.add_columns(*ROWS[0])
         table.add_rows(ROWS)
+
+class RelaysWidget(VerticalGroup):
+    relay_status = reactive(0b00000000)
+
+    def compose(self):
+        with HorizontalGroup(id="relays-header"):
+            with VerticalGroup(id="relays-requested-statuses"):
+                yield Label("[b]Requested status", id="requested-status-label")
+                for i in range(3):
+                    with Horizontal():
+                        yield Label(f"Relay {i+1}")
+                        yield Switch(value=False, id=f"relay_{i+1}_switch")
+                yield Button("Sync", id="relays-sync-button")
+
+            yield Rule(orientation="vertical", line_style="heavy", id="relays-vrule")
+
+            with VerticalGroup(id="relays-actual-statuses"):
+                yield Label("Actual status")
+                for i in range(3):
+                    with Horizontal():
+                        yield Switch(value=self.relay_status & (1 << i) != 0, id=f"relay_{i+1}_switch")
+                yield Button("Set", id="relays-set-button")
+
+    def on_mount(self):
+        self.border_title = "Relays position"
