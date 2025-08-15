@@ -1,13 +1,10 @@
 Screen {
-    align: center middle;
-}
+   align: center middle;
 
-#status-bar {
-    background: #303030;
-    color: white;
-    padding: 1 2;
-    text-style: bold;
-    height: auto;
+   #any-device-tab-content {
+      width: 100%;
+      height: 100%;
+   }
 }
 
 .config-dialog {
@@ -25,11 +22,6 @@ Screen {
    height: auto;
    grid-columns: auto 30;
    margin-bottom: 1;
-}
-
-.select-container {
-   align: center middle;
-   height: 40%;
 }
 
 .dialog-select-label {
@@ -70,6 +62,7 @@ RelayWidget {
    background: $boost;
    height: 13;
    width: auto;
+   max-width: 64;
    margin: 1;
    min-width: 90;
    border: round $primary;
@@ -80,7 +73,7 @@ RelayWidget {
    width: auto;
    height: 100%;
    background: brown;
-   padding: 0 2;
+   padding: 1 2;
 }
 
 .relay-actions Button {
@@ -88,28 +81,94 @@ RelayWidget {
    margin: 1 1;
 }
 
-.relay-opens-on {
-   border: round $secondary;
-   padding: 0 1;
-   width: auto;
-}
-
 #relay-scroll {
    border: inner green;
 }
 
-.relay-filters {
+.relay-info DataTable {
    width: auto;
-   border: round $secondary;
-   grid-size: 2;
-   grid-columns: auto auto;
+   padding: 0 2;
 }
 
-.relay-filters Label {
-   padding: 1 2;
-   width: 30;
+.relay-info Button {
+   width: auto;
+   padding: 0 2;
+   margin: 1 3;
 }
 
-.relay-filters Select {
-   width: 20;
+InfeedWidget {
+   layout: vertical;
+   background: $boost;
+   height: 15;
+   width: auto;
+   max-width: 64;
+   margin: 1;
+   min-width: 90;
+   border: round $primary;
+   padding: 1;
+}
+
+InfeedWidget Button {
+   width: auto;
+   padding: 0 2;
+   margin: 1 3;
+}
+
+InfoWidget {
+   background: $boost;
+   height: 16;
+   width: auto;
+   max-width: 64;
+   margin: 1;
+   min-width: 90;
+   border: round $primary;
+   padding: 1 1;
+
+   StaticStatusList {
+      border: round $primary;
+      width: 28;
+      height: 12;
+   }
+}
+
+EStopWidget {
+   background: $boost;
+   height: 26;
+   max-width: 64;
+   margin: 1 0 0 2;
+   min-width: 90;
+   border: round $primary;
+   padding: 1;
+
+   #estop-clear-button {
+      margin-left: 3;
+   }
+
+   DataTable {
+      margin: 1 2;
+   }
+
+   Button {
+      margin: 0 3 0 3;
+   }
+
+   #estop-cmd-code-group {
+      margin-bottom: 1;
+
+      Static {
+         padding: 1 3;
+         height: 3;
+         width: 10;
+      }
+   }
+
+   StaticStatusList {
+      border: round $primary;
+      width: 28;
+      height: 12;
+   }
+
+   Input {
+      width: 20;
+   }
 }

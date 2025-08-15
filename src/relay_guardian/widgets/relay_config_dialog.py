@@ -1,16 +1,8 @@
 from textual.containers import Container
-from textual.widgets import Static, Button, Label, Checkbox, Input, DataTable
+from textual.widgets import Static, Button, Label, Checkbox, Input
 from textual.containers import HorizontalGroup, Vertical, Grid, VerticalGroup
 from textual.reactive import reactive
 
-ROWS = [
-    ("Status", "???"),
-    ("Cycles", "0"),
-    ("Filter ON", "0.0s"),
-    ("Filter OFF", "0.0s"),
-    ("Open on in-feed fault", "[b]Yes"),
-    ("Open on comm lost", "No")
-]
 
 class RelayWidget(HorizontalGroup):
     CSS_PATH = "relay.tcss"
@@ -45,13 +37,22 @@ class RelayWidget(HorizontalGroup):
             yield Button("Open", id=f"open_{self.relay_id}")
             yield Button("Close", id=f"close_{self.relay_id}")
 
-        # Add a grid with all infos
-        with Vertical(classes="relay-info"):
-            yield DataTable(show_header=False, show_cursor=False)
-            yield Button("Configure", id=f"config_{self.relay_id}")
+        # Center: Opens On group with checkboxes
+        opens_on = VerticalGroup(classes="relay-opens-on")
+        opens_on.border_title = "Opens On"
+        with opens_on:
+            yield Checkbox("in-feed fault", self.opens_on_feed_fault)
+            yield Checkbox("comm lost", self.opens_on_comm_lost)
+
+        # Right: Min on/off time edits and disable checkbox
+        filter = Grid(classes="relay-filters")
+        filter.border_title = "Filters"
+        with filter:
+            yield Label("Minimum ON time")
+            yield Input(type="number", value="0.0")
+            yield Label("Minimum OFF time")
+            yield Input(type="number", value="0.0")
+            yield Checkbox("Disabled", self.disabled)
 
     def on_mount(self):
-        self.border_title = f"Relay {self.relay_id}"
-        table = self.query_one(DataTable)
-        table.add_columns(*ROWS[0])
-        table.add_rows(ROWS)
+        self.border_title = f"Relay {self.relay_id} | {self.status} | Cycles: {self.cycles}"

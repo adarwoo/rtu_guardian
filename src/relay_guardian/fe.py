@@ -1,5 +1,5 @@
-from textual.widgets import Header, Footer
-from textual.containers import VerticalScroll
+from textual.widgets import Header, Footer, TabbedContent, TabPane
+from textual.containers import VerticalScroll, HorizontalGroup, Vertical
 from textual.app import App
 from textual.reactive import reactive
 from textual import events
@@ -8,7 +8,7 @@ from .config import config
 
 from .widgets.config import ConfigDialog, ConfigDialogClosed
 from .widgets.statusbar import StatusBar
-from .widgets.relay import RelayWidget
+from .widgets.relay_device import RelayDeviceWidget
 
 
 class RelayGuardian(App):
@@ -58,11 +58,10 @@ class RelayGuardian(App):
     def compose(self):
         yield self.header
         yield Footer()
-        with VerticalScroll(id="relay-scroll") as vs:
-            vs.border_title = "Id = 44"
-            yield RelayWidget(1)
-            yield RelayWidget(2)
-            yield RelayWidget(3)
+
+        with TabbedContent(id="any-device-tab-content"):
+            for device in [44, 56, 76]:
+                yield RelayDeviceWidget(device)
 
     def action_save(self):
         config.save()
