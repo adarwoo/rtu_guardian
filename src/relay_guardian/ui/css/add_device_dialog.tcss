@@ -30,4 +30,9 @@
          margin: 1 4;
       }
    }
+
+   #error-label {
+      width: 100%;
+      content-align-horizontal: center;
+   }
 }

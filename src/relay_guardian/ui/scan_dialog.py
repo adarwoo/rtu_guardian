@@ -1,4 +1,5 @@
 from enum import Enum, auto
+
 from textual.screen import ModalScreen
 from textual.widgets import Label, Button, Static
 from textual.containers import Vertical, Horizontal
@@ -108,7 +109,7 @@ class ScanMatrix(Vertical):
 
 class ScanDialog(ModalScreen):
     """Dialog to scan for Modbus RTU devices (ID 1 to 247) with ScanMatrix."""
-    CSS_PATH = "scan_dialog.tcss"
+    CSS_PATH = "css/scan_dialog.tcss"
 
     def __init__(self, scan_results=None):
         super().__init__()

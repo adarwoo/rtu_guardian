@@ -1,7 +1,7 @@
 from textual.widgets import Header as Hdr, Label
 from textual.reactive import reactive
 
-from ..config import config
+from relay_guardian.config import config
 
 class Header(Hdr):
     def compose(self):

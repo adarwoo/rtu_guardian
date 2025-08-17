@@ -4,15 +4,15 @@ from textual.app import App
 from textual.reactive import reactive
 from textual import events
 
-from .config import config
+from relay_guardian.device import DeviceManager
+from relay_guardian.config import config
 
-from .widgets.config_dialog import ConfigDialog, ConfigDialogClosed
-from .widgets.statusbar import StatusBar
-from .widgets.relay_device import RelayDeviceWidget
+from .statusbar import StatusBar
+from .config_dialog import ConfigDialog, ConfigDialogClosed
 
 
-class RelayGuardian(App):
-    CSS_PATH = "main.css"
+class RTUGuardian(App):
+    CSS_PATH = "css/main.tcss"
 
     # Bindings themselves are not reactive, but you can override the watch method
     # to update bindings dynamically. Here's how you can do it:
@@ -37,6 +37,9 @@ class RelayGuardian(App):
         self.header = Header()
         self.update_subtitle()
 
+        # The application holds the device manager
+        self.device_manager = DeviceManager()
+
     def check_action(self, action: str, parameters: tuple[object, ...]) -> bool | None:
         """Check if an action may run."""
         if action == "save":
@@ -59,10 +62,6 @@ class RelayGuardian(App):
         yield self.header
         yield Footer()
 
-        with TabbedContent(id="any-device-tab-content"):
-            for device in [44, 56, 76]:
-                yield RelayDeviceWidget(device)
-
     def action_save(self):
         config.save()
         self.can_save = config.is_changed
@@ -71,15 +70,21 @@ class RelayGuardian(App):
         await self.push_screen(ConfigDialog())
 
     async def action_recovery(self):
-        from .widgets.recovery_dialog import RecoveryDialog
+        from ..devices.es_relay.ui.recovery_dialog import RecoveryDialog
         await self.push_screen(RecoveryDialog())
 
     async def action_add(self):
-        from .widgets.add_device_dialog import AddDeviceDialog
-        await self.push_screen(AddDeviceDialog())
+        from .add_device_dialog import AddDeviceDialog
+
+        dialog = AddDeviceDialog(self.device_manager.active_ids)
+        await self.push_screen(dialog, self.process_add_device)
+
+    async def process_add_device(self, device_id: int):
+        # Process the addition of a new device
+        self.device_manager.attach(device_id)
 
     async def action_scan(self):
-        from .widgets.scan_dialog import ScanState, ScanDialog
+        from .scan_dialog import ScanState, ScanDialog
         scan_results = {
             44: ScanState.FOUND,
             43: ScanState.PRESUMED,

@@ -2,8 +2,8 @@ from textual.screen import ModalScreen
 from textual.widgets import Button, Select, Checkbox, Label
 from textual.containers import Vertical, VerticalScroll, Horizontal, Grid
 
-from ..config import config, VALID_BAUD_RATES
-from ..exceptions import TerminalError
+from relay_guardian.config import config, VALID_BAUD_RATES
+
 from textual import work
 from textual.reactive import reactive
 from textual.timer import Timer
