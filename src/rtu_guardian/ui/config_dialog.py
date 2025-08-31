@@ -14,7 +14,7 @@ class ConfigDialogClosed(Message):
     pass
 
 class ConfigDialog(ModalScreen):
-    CSS_PATH = "config_dialog.tcss"
+    CSS_PATH = "css/config_dialog.tcss"
 
     """Dialog for selecting COM port and serial settings."""
     scanning = reactive(True)

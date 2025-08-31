@@ -1,7 +1,7 @@
 import asyncio
 from textual.widgets import TabPane
 
-from relay_guardian.modbus.proxy import DeviceProxy
+from rtu_guardian.modbus.proxy import DeviceProxy
 from enum import Enum, auto
 
 class DeviceState(Enum):

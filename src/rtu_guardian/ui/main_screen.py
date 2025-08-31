@@ -4,27 +4,27 @@ from textual.app import App
 from textual.reactive import reactive
 from textual import events
 
-from relay_guardian.device import DeviceManager
-from relay_guardian.config import config
+from .config import config
 
-from .statusbar import StatusBar
-from .config_dialog import ConfigDialog, ConfigDialogClosed
+from .widgets.config import ConfigDialog, ConfigDialogClosed
+from .widgets.statusbar import StatusBar
+from .widgets.relay_device import RelayDeviceWidget
 
 
-class RTUGuardian(App):
-    CSS_PATH = "css/main.tcss"
+class RelayGuardian(App):
+    CSS_PATH = "main.css"
 
     # Bindings themselves are not reactive, but you can override the watch method
     # to update bindings dynamically. Here's how you can do it:
 
     BINDINGS = [
         ("q", "quit",     "Quit"),
-        ("ctrl+s", "save", "Save config"),
-        ("s", "scan",     "Scan"),
+        ("s", "save",     "Save config"),
+        ("S", "scan",     "Scan"),
+        ("i", "id",       "Set device ID"),
+        ("l", "locate",   "Locate"),
         ("r", "recovery", "Recovery mode"),
         ("c", "config",   "Configuration"),
-        ("+", "add",      "Add device"),
-        ("-", "remove",   "Remove device"),
     ]
 
     # When this changes, refresh footer/bindings automatically
@@ -36,9 +36,6 @@ class RTUGuardian(App):
         self.status_bar = StatusBar()
         self.header = Header()
         self.update_subtitle()
-
-        # The application holds the device manager
-        self.device_manager = DeviceManager()
 
     def check_action(self, action: str, parameters: tuple[object, ...]) -> bool | None:
         """Check if an action may run."""
@@ -62,54 +59,16 @@ class RTUGuardian(App):
         yield self.header
         yield Footer()
 
+        with TabbedContent(id="any-device-tab-content"):
+            for device in [44, 56, 76]:
+                yield RelayDeviceWidget(device)
+
     def action_save(self):
         config.save()
         self.can_save = config.is_changed
 
     async def action_config(self):
         await self.push_screen(ConfigDialog())
-
-    async def action_recovery(self):
-        from ..devices.es_relay.ui.recovery_dialog import RecoveryDialog
-        await self.push_screen(RecoveryDialog())
-
-    async def action_add(self):
-        from .add_device_dialog import AddDeviceDialog
-
-        dialog = AddDeviceDialog(self.device_manager.active_ids)
-        await self.push_screen(dialog, self.process_add_device)
-
-    async def process_add_device(self, device_id: int):
-        # Process the addition of a new device
-        self.device_manager.attach(device_id)
-
-    async def action_scan(self):
-        from .scan_dialog import ScanState, ScanDialog
-        scan_results = {
-            44: ScanState.FOUND,
-            43: ScanState.PRESUMED,
-            78: ScanState.NOT_FOUND,
-            100: ScanState.UNKNOWN,
-            1: ScanState.NOT_FOUND,
-            2: ScanState.NOT_FOUND,
-            3: ScanState.NOT_FOUND,
-            4: ScanState.NOT_FOUND,
-            5: ScanState.NOT_FOUND,
-            6: ScanState.NOT_FOUND,
-            7: ScanState.NOT_FOUND,
-            8: ScanState.NOT_FOUND,
-            9: ScanState.NOT_FOUND,
-            10: ScanState.NOT_FOUND,
-            11: ScanState.NOT_FOUND,
-            12: ScanState.NOT_FOUND,
-            13: ScanState.NOT_FOUND,
-            14: ScanState.NOT_FOUND,
-            15: ScanState.NOT_FOUND,
-            18: ScanState.INFIRMED,
-            19: ScanState.CONFIRMED
-        }  # {id: ScanState}
-
-        await self.push_screen(ScanDialog(scan_results=scan_results))
 
     async def on_config_dialog_closed(self, message: ConfigDialogClosed):
         # Do whatever you need when the dialog closes
