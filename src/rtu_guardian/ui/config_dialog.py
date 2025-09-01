@@ -2,7 +2,7 @@ from textual.screen import ModalScreen
 from textual.widgets import Button, Select, Checkbox, Label
 from textual.containers import Vertical, VerticalScroll, Horizontal, Grid
 
-from relay_guardian.config import config, VALID_BAUD_RATES
+from rtu_guardian.config import config, VALID_BAUD_RATES
 
 from textual import work
 from textual.reactive import reactive
@@ -45,15 +45,15 @@ class ConfigDialog(ModalScreen):
                 Button("Set", id="ok"),
             ]
 
-            if not config.is_default:
+            if not config.is_usable:
                 buttons.append(Button("Cancel", id="cancel"))
 
             vs = VerticalScroll(
                 Grid(
                     Label("COM Port", classes="dialog-select-label"),
                     Select(
-                        [(p, p) for p in self._ports], value=config["last_com_port"],
-                        allow_blank=False,
+                        [(p, p) for p in self._ports], value=config["com_port"] or self._ports[-1],
+                        allow_blank=True,
                         id="com_port",
                         classes="dialog-select"
                     ),
@@ -87,7 +87,7 @@ class ConfigDialog(ModalScreen):
                 Horizontal(
                     Checkbox(
                         "Validate COM settings on start",
-                        config["com_port"] == "",
+                        config["check_comm"],
                         id="ask_on_start_checkbox", classes="dialog-checkbox"
                     ),
                     classes="dialog-checkbox-container"
@@ -124,18 +124,19 @@ class ConfigDialog(ModalScreen):
 
     def on_button_pressed(self, event):
         if event.button.id != "cancel":
-            self.selected_port = self.query_one("#com_port", Select).value
-            self.selected_baud = self.query_one("#baud", Select).value
-            self.selected_stop = self.query_one("#stop", Select).value
-            self.selected_parity = self.query_one("#parity", Select).value
+            selected_port = self.query_one("#com_port", Select).value
+            selected_baud = self.query_one("#baud", Select).value
+            selected_stop = self.query_one("#stop", Select).value
+            selected_parity = self.query_one("#parity", Select).value
+            check_on_startup = self.query_one("#ask_on_start_checkbox").value
 
             # Update and save global config
             config.update({
-                "last_com_port": self.selected_port,
-                "baud": int(self.selected_baud),
-                "stop": int(self.selected_stop),
-                "parity": self.selected_parity,
-                "com_port": self.selected_port if self.query_one("#ask_on_start_checkbox").label == "✔" else ""
+                "com_port": selected_port,
+                "baud": int(selected_baud),
+                "stop": int(selected_stop),
+                "parity": selected_parity,
+                "check_comm": check_on_startup,
             })
 
             if event.button.id == "save":

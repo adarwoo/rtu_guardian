@@ -1,76 +1,65 @@
-from pymodbus import (
-    FramerType,
-    ModbusException,
-)
-from pymodbus.client import ModbusSerialClient
-from ..config import config
-import threading
-import time
-from textual.message import Message
+import asyncio
+from asyncio.log import logger
 
-class ClientConnectionStatus(Message):
-    pass
+from pymodbus import FramerType, ModbusException
+from pymodbus.client import ModbusSerialClient
+
+from rtu_guardian.config import config
+from rtu_guardian.modbus.request import Request, RequestKind
 
 
 class ModbusAgent:
-    def __init__(self):
-        self.client = None
-        self.is_connected = reactive(False)  # Reactive attribute for GUI to react to
-        self.connection_thread = None
-        self.stop_thread = False
+    def __init__(self, requests):
+        self.requests = requests
+        self.client: ModbusSerialClient | None = None
+        self._app = None
+        self._keep_going = True
 
-    def notify_config_ready(self):
-        """Notify the client that config is ready and start connection attempt in a thread."""
-        if self.connection_thread and self.connection_thread.is_alive():
-            self.stop_thread = True
-            self.connection_thread.join()
+    def set_app(self, app):
+        self._app = app
 
-        self.connection_thread = threading.Thread(target=self._open_connection)
-        self.connection_thread.start()
+    def stop(self):
+        self._keep_going = False
+
+    @property
+    def connected(self):
+        return self.client is not None and self.client.connected
 
     def _open_connection(self):
         """Run the connection attempt in a separate thread."""
-        self.stop_thread = False
-        while not self.stop_thread:
-            try:
-                if self.client is not None:
-                    self.client.close()
+        retval = False
 
+        if self.connected:
+            self.client.close()
+
+        if config.is_usable:
+            try:
                 self.client = ModbusSerialClient(
                     port=config['com_port'],
                     baudrate=config['baud'],
                     stopbits=config['stop'],
                     parity=config['parity'],
-                    timeout=1,
+                    timeout=0.1,
                     framer=FramerType.RTU
                 )
 
-                self.is_connected = self.client.connect()
+                retval = self.client.connect()
+                logger.info("Modbus client connected")
+            except (ModbusException, ValueError) as e:
+                logger.error(f"Error connecting to Modbus client: {e}")
 
-                if self.is_connected:
-                    # Connection successful, notify GUI via reactive attribute
-                    break
-                else:
-                    raise ModbusException("Failed to connect")
-            except ModbusException as e:
-                self.is_connected = False
-                # Log error or handle as needed
-                time.sleep(1)  # Retry after 1 second
-            except Exception as e:
-                self.is_connected = False
-                # Handle other errors
-                time.sleep(1)
+        return retval
 
-    def close(self):
-        """Close the Modbus client connection."""
-        self.stop_thread = True
+    async def run_async(self):
+        # Add your main loop or processing logic here
+        try:
+            while self._keep_going:
+                request: Request = await self.requests.get()
 
-        if self.connection_thread and self.connection_thread.is_alive():
-            self.connection_thread.join()
+                if request.kind == RequestKind.OPEN:
+                    self._app.connected = self._open_connection()
+        except Exception as e:
+            logger.error(f"ModbusAgent encountered an error: {e}")
 
-        if self.client:
-            self.client.close()
-            self.is_connected = False
-
-# Global instance
-modbus_client = ModbusClientWrapper()
+    def request(self, request: Request):
+        self.requests.put_nowait(request)

@@ -28,10 +28,10 @@ async def main():
     setup_debug()
 
     requests = asyncio.Queue()
-    responses = asyncio.Queue()
 
-    agent = ModbusAgent(requests, responses)
-    app = RTUGuardian(agent, responses)
+    agent = ModbusAgent(requests)
+    app = RTUGuardian(agent)
+    agent.set_app(app)
 
     # Run the Textual TUI and the modbus client concurrently
     await asyncio.gather(

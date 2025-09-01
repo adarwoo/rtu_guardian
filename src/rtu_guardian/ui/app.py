@@ -1,12 +1,13 @@
 import asyncio
 
-from textual.widgets import Header, Footer
+from textual.widgets import Header, Footer, Tabs, TabbedContent, TabPane
 from textual.app import App
 from textual.reactive import reactive
 
 from rtu_guardian.device import DeviceManager
 from rtu_guardian.config import config
 
+from rtu_guardian.modbus.request import Request, RequestKind
 from rtu_guardian.ui.config_dialog import ConfigDialog, ConfigDialogClosed
 from rtu_guardian.modbus.agent import ModbusAgent
 
@@ -30,11 +31,11 @@ class RTUGuardian(App):
     # When this changes, refresh footer/bindings automatically
     can_save = reactive(config.has_unsaved_changes, bindings=True)
     sub_title = reactive("")
+    connected = reactive(False)
 
-    def __init__(self, modbus_agent: ModbusAgent, responses: asyncio.Queue):
+    def __init__(self, modbus_agent: ModbusAgent):
         super().__init__()
         self.modbus_agent = modbus_agent
-        self.responses = responses
 
         # The application holds the device manager
         self.device_manager = DeviceManager()
@@ -44,35 +45,28 @@ class RTUGuardian(App):
         if action == "save":
             return None if not self.can_save else True  # dim/disable when False
 
+        if action == "quit":
+            self.modbus_agent.stop()
+
         return True
 
-    def update_subtitle(self):
-        comport = "COM?" if config['last_com_port'] == "" else f"{config['last_com_port']}"
-
-        if modbus_client.is_open:
-            self.sub_title = f"{comport} {config['baud']} 8{config['parity']}{config['stop']}"
-        else:
-            self.sub_title = f"{comport} [red]Disconnected[/red]"
-
     async def on_mount(self):
-        # Start the response consumer worker
-        self.run_worker(self.response_consumer())
-
-        self.update_subtitle()
+        # Open the connection on startup - unless confirmation is awaiting
+        if config['check_comm'] is False:
+            self.modbus_agent.request(Request(RequestKind.OPEN))
 
         # If config is default (i.e., just created), prompt user to configure
-        if config.is_default:
+        if not config.is_usable or config['check_comm']:
             await self.push_screen(ConfigDialog())
-
-        modbus_client.notify_config_ready(self)
 
     def compose(self):
         yield Header()
         yield Footer()
+        yield TabbedContent(id="devices")
 
     def action_save(self):
         config.save()
-        self.can_save = config.is_changed
+        self.can_save = False
 
     async def action_config(self):
         await self.push_screen(ConfigDialog())
@@ -90,6 +84,9 @@ class RTUGuardian(App):
     async def process_add_device(self, device_id: int):
         # Process the addition of a new device
         self.device_manager.attach(device_id)
+        # Create a empty tab for query
+        unknown_device = TabPane(title=f"ID {device_id}", id=f"device-{device_id}")
+        self.query_one(Tabs).mount(unknown_device)
 
     async def action_scan(self):
         from .scan_dialog import ScanState, ScanDialog
@@ -120,8 +117,18 @@ class RTUGuardian(App):
         await self.push_screen(ScanDialog(scan_results=scan_results))
 
     async def on_config_dialog_closed(self, message: ConfigDialogClosed):
+        if config.is_usable:
+            self.modbus_agent.request(Request(RequestKind.OPEN))
+
         self.refresh()  # or refocus, or update header, etc.
-        self.update_subtitle()
 
     async def on_modbus_status_change(self):
         self.query_one(Header).refresh()
+
+    def watch_connected(self, connected: bool):
+        comport = "COM?" if config['com_port'] == "" else f"{config['com_port']}"
+
+        self.sub_title = f"{comport} {config['baud']} 8{config['parity']}{config['stop']}"
+
+        header = self.query_one(Header)
+        header.styles.background = "green" if self.connected else "red"

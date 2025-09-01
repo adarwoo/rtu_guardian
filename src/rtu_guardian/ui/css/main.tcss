@@ -1,7 +1,7 @@
 Screen {
    align: center middle;
 
-   #any-device-tab-content {
+   Tabs {
       width: 100%;
       height: 100%;
    }
