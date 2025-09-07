@@ -14,18 +14,26 @@ class Request(ABC):
     ``execute``) and an errback (invoked with the raised exception).
     Callbacks may be sync or async functions.
     """
-    def __init__(self, device_id: int,
+    def __init__(
+        self,
+        device_id: int,
         data_handler: Callable[[Any], Awaitable[None]] = None,
         *,
         on_error: Optional[Callable[[], Awaitable[None]]] = None,
         on_no_response: Optional[Callable[[], Awaitable[None]]] = None,
-        on_comm_loss: Optional[Callable[[], Awaitable[None]]] = None
+        on_comm_loss: Optional[Callable[[], Awaitable[None]]] = None,
+        **kwargs
     ):
         self.device_id = device_id
         self.data_handler = data_handler
         self.on_error = on_error
         self.on_no_response = on_no_response
         self.on_comm_loss = on_comm_loss
+
+        # Add args from ADD_ARGS if found, using the default values
+        add_args = getattr(self.__class__, "ADD_ARGS", {})
+        for k, v in add_args.items():
+            setattr(self, k, kwargs.get(k, v))
 
     @abstractmethod
     async def on_execute(self, client: AsyncModbusSerialClient) -> Any:  # pragma: no cover - interface
@@ -62,19 +70,17 @@ class ReportDeviceId(Request):
     Request the device ID (also acts as a ping).
     """
     async def on_execute(self, client: AsyncModbusSerialClient):
-        #return await client.report_device_id(device_id=self.device_id)
-        return await client.read_holding_registers(0, device_id=self.device_id, count=1)
+        return await client.report_device_id(device_id=self.device_id)
 
+class ReadHoldingRegisters(Request):
+    ADD_ARGS = {'address': 0, 'count': 1}
+
+    async def on_execute(self, client: AsyncModbusSerialClient):
+        return await client.read_holding_registers(self.address, device_id=self.device_id, count=self.count)
 
 class ReadCoils(Request):
-    def __init__(self, device_id: int, *, address: int = 0, count: int = 1, data_handler: Callable[[Any], Awaitable[None]] = None,
-                 on_error: Optional[Callable[[], Awaitable[None]]] = None,
-                 on_no_response: Optional[Callable[[], Awaitable[None]]] = None,
-                 on_comm_loss: Optional[Callable[[], Awaitable[None]]] = None):
-        super().__init__(device_id, data_handler=data_handler,
-                         on_error=on_error, on_no_response=on_no_response, on_comm_loss=on_comm_loss)
-        self.start = address
-        self.count = count
+    ADD_ARGS = {'address': 0, 'count': 1}
+
     """
     Modbus Function Code 1
     Read coils (digital outputs).

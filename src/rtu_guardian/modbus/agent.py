@@ -39,6 +39,8 @@ class ModbusAgent:
                     stopbits=config['stop'],
                     parity=config['parity'],
                     timeout=0.1,
+                    retries=1,
+                    retry_delay=0.1,
                     framer=FramerType.RTU
                 )
 

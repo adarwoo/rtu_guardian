@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from textual.widgets import Header, Footer, TabbedContent, TabPane
 from textual.app import App
 from textual.reactive import reactive
@@ -14,10 +15,15 @@ from rtu_guardian.modbus.agent import ModbusAgent
 from rtu_guardian.devices.es_relay.ui.device import Device as ESRelayDevice
 
 
-class ConnectionStatus(Message):
-    def __init__(self, status: str) -> None:
-        self.status = status
+class TextualLogHandler(logging.Handler):
+    def __init__(self, app):
         super().__init__()
+        self.app = app
+
+    def emit(self, record):
+        msg = self.format(record)
+        # Send into Textual log panel
+        self.app.log(f"[pymodbus] {msg}")
 
 
 class RTUGuardian(App):
@@ -87,6 +93,13 @@ class RTUGuardian(App):
         if config['check_comm'] is False:
             # Opening now handled by agent directly when needed.
             pass
+
+        handler = TextualLogHandler(self)
+        handler.setFormatter(logging.Formatter("%(levelname)s: %(message)s"))
+
+        pymodbus_logger = logging.getLogger("pymodbus")
+        pymodbus_logger.setLevel(logging.DEBUG)
+        pymodbus_logger.addHandler(handler)
 
         # If config is default (i.e., just created), prompt user to configure
         if not config.is_usable or config['check_comm']:
