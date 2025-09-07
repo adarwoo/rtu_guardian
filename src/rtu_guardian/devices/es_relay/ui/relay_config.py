@@ -1,5 +1,4 @@
-from textual.containers import Container
-from textual.widgets import Static, Button, Label, Checkbox, Input
+from textual.widgets import Button, Label, Checkbox, Input
 from textual.containers import HorizontalGroup, Vertical, Grid, VerticalGroup
 from textual.reactive import reactive
 

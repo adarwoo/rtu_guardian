@@ -1,20 +1,20 @@
 This project is work in progress and just got started
 
-The relay guardian is a PC/Linux/Mac application which allow configuring and troubleshooting the Modbus relay project.
+The RTU guardian is a PC/Linux/Mac application which allow configuring and troubleshooting Modbus RTU devices, with some devices being fully managed - in this case - all my Modbus devices.
 
 Core function:
  * Built-in Modbus support - acts as the bus master
- * Recovery of the relay module
- * Reconfiguration of the relay
- * Extract statistics from the relay
- * Visual infeed voltage
- * Run a diagnostic of the module
+ * Bus scanning
+ * Adding devices of different types
+ * Dynamic device type discovery
+ * Recovery mode for device supporting it
+ * Full support of the ARex Relay - covering 100% of the modbus ICD
 
 ## Implementation
 
-The application is written in Python (why not!) using the Pivy UI framework and PivyMD widgets.
-It also used pymodbus for the modbus RTU part.
+The application is written in Python (why not!) using the Textrual TUI framework.
+It also uses pymodbus for the modbus RTU part.
 
 ## Build and installation
 
-The aim is to package it for Windows and Linux. A docker may be added to manage the build.
+The Poetry package manager is used for integrated development in Windows/Linux/Mac.

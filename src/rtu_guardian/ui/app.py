@@ -1,15 +1,23 @@
 import asyncio
-
-from textual.widgets import Header, Footer, Tabs, TabbedContent, TabPane
+from textual.widgets import Header, Footer, TabbedContent, TabPane
 from textual.app import App
 from textual.reactive import reactive
+from textual.message import Message
 
-from rtu_guardian.device import DeviceManager
+from rtu_guardian.device import Device
 from rtu_guardian.config import config
 
-from rtu_guardian.modbus.request import Request, RequestKind
+from rtu_guardian.modbus.request import Request
 from rtu_guardian.ui.config_dialog import ConfigDialog, ConfigDialogClosed
 from rtu_guardian.modbus.agent import ModbusAgent
+
+from rtu_guardian.devices.es_relay.ui.device import Device as ESRelayDevice
+
+
+class ConnectionStatus(Message):
+    def __init__(self, status: str) -> None:
+        self.status = status
+        super().__init__()
 
 
 class RTUGuardian(App):
@@ -33,36 +41,70 @@ class RTUGuardian(App):
     sub_title = reactive("")
     connected = reactive(False)
 
-    def __init__(self, modbus_agent: ModbusAgent):
+    def __init__(self):
         super().__init__()
-        self.modbus_agent = modbus_agent
 
-        # The application holds the device manager
-        self.device_manager = DeviceManager()
+        # Send requests to the agent
+        self.requests = asyncio.Queue()
+
+        self.modbus_agent = ModbusAgent(self.requests, self.on_connection_status)
+
+        # TabContent that holds all device panes
+        self.tab_content = TabbedContent(id="devices")
+
+    def on_connection_status(self, status: bool):
+        self.connected = status
+
+    # Convenience
+    @property
+    def active_ids(self) -> list[int]:
+        # Query all panes with id starting with "device-"
+        panes = self.tab_content.query("Device")
+        # Extract numeric id from pane id (assumes id="device-<number>")
+
+        ids = []
+
+        for pane in panes:
+            try:
+                pane_id = getattr(pane, "id", "")
+                if pane_id and pane_id.startswith("device-"):
+                    num = int(pane_id.split("-", 1)[1])
+                    ids.append(num)
+            except Exception:
+                continue
+
+        return sorted(ids)
 
     def check_action(self, action: str, parameters: tuple[object, ...]) -> bool | None:
         """Check if an action may run."""
         if action == "save":
             return None if not self.can_save else True  # dim/disable when False
 
-        if action == "quit":
-            self.modbus_agent.stop()
-
         return True
 
     async def on_mount(self):
         # Open the connection on startup - unless confirmation is awaiting
         if config['check_comm'] is False:
-            self.modbus_agent.request(Request(RequestKind.OPEN))
+            # Opening now handled by agent directly when needed.
+            pass
 
         # If config is default (i.e., just created), prompt user to configure
         if not config.is_usable or config['check_comm']:
             await self.push_screen(ConfigDialog())
 
+        # Start the agent
+        self.run_worker(
+            self.modbus_agent.run_async(), name="modbus_agent"
+        )
+
+    async def on_shutdown(self) -> None:
+        # Tell the agent to stop gracefully
+        self.modbus_agent.stop()
+
     def compose(self):
         yield Header()
         yield Footer()
-        yield TabbedContent(id="devices")
+        yield self.tab_content
 
     def action_save(self):
         config.save()
@@ -72,21 +114,32 @@ class RTUGuardian(App):
         await self.push_screen(ConfigDialog())
 
     async def action_recovery(self):
-        from ..devices.es_relay.ui.recovery_dialog import RecoveryDialog
+        from .recovery_dialog import RecoveryDialog
         await self.push_screen(RecoveryDialog())
 
     async def action_add(self):
         from .add_device_dialog import AddDeviceDialog
 
-        dialog = AddDeviceDialog(self.device_manager.active_ids)
+        dialog = AddDeviceDialog(self.active_ids)
         await self.push_screen(dialog, self.process_add_device)
 
+    async def action_remove(self):
+        # Removes the currently selected device
+        if self.tab_content.active:
+            self.tab_content.remove_pane(self.tab_content.active)
+
     async def process_add_device(self, device_id: int):
-        # Process the addition of a new device
-        self.device_manager.attach(device_id)
-        # Create a empty tab for query
-        unknown_device = TabPane(title=f"ID {device_id}", id=f"device-{device_id}")
-        self.query_one(Tabs).mount(unknown_device)
+        """Create and insert a new device tab in numeric order (skip duplicates)."""
+        # Create a generic device. The device worker will attempt to identify the actual device
+        pane = Device(device_id, self.modbus_agent)
+
+        # Determine pane to insert before (the first existing id greater than new one)
+        next_higher = next((i for i in self.active_ids if i > device_id), None)
+        before_pane = self.tab_content.query_one(f"#device-{next_higher}") if next_higher is not None else None
+        self.tab_content.add_pane(pane, before=before_pane)
+
+        # Optionally focus new pane
+        self.tab_content.active = pane.id
 
     async def action_scan(self):
         from .scan_dialog import ScanState, ScanDialog
@@ -118,7 +171,8 @@ class RTUGuardian(App):
 
     async def on_config_dialog_closed(self, message: ConfigDialogClosed):
         if config.is_usable:
-            self.modbus_agent.request(Request(RequestKind.OPEN))
+            # Opening now handled by agent directly when needed.
+            pass
 
         self.refresh()  # or refocus, or update header, etc.
 

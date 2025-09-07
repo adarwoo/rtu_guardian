@@ -1,53 +1,74 @@
-import asyncio
-from textual.widgets import TabPane
 
-from rtu_guardian.modbus.proxy import DeviceProxy
+from pymodbus.constants import ExcCodes
+from textual.widgets import TabPane
+from textual.reactive import reactive
 from enum import Enum, auto
+
+from pymodbus.pdu import ModbusPDU
+
+from rtu_guardian.modbus.agent import ModbusAgent
+from rtu_guardian.modbus.request import ReportDeviceId, Request
+
 
 class DeviceState(Enum):
     SCANNING = auto()
-    CONNECTED = auto()
-    DISCONNECTED = auto()
+    UNKNOWN = auto()
 
-class Device:
-    def __init__(self, device_id: int):
-        self.device_id = device_id
-        self.proxy = DeviceProxy(device_id)
-        self.tab = TabPane(f"Device {device_id} [yellow]?[yellow]", id=f"device-{device_id}")
-
-        self.state = DeviceState.SCANNING
-
-        # Start a task to scan the device
-        self.scan_task = asyncio.create_task(self.scan_device())
-
-    async def scan_device(self):
-        while self.state == DeviceState.SCANNING:
-            slave_id = await self.proxy.report_slave_id()
-            await asyncio.sleep(1)
-            # Simulate scanning the device
-            # self.proxy.scan()
-
-            self.state = DeviceState.UNKNOWN
-
-
-
-class DeviceManager:
-    """The device manager brings the UI and modbus together.
-    It is responsible for handling all active devices in the system
-    Each device added to the UI has a matching proxy object and a UI front.
-    The manager is responsible for associating both.
-    It is also responsible for adding and removing devices.
+class Device(TabPane):
     """
-    def __init__(self):
-        self.devices = {} # ID int -> (DeviceProxy, TabPane)
+    The device is the TabPane which owns a given device.
+    The content area defaults to the device's status text until the device
+    type is established - then the content becomes substituted with the correct
+    type.
+    The Device handles all outgoing communication with the device, through the
+    agent.
+    """
+    state = reactive(DeviceState.SCANNING)
+    status_text = reactive("Scanning for device...")
 
-    def attach(self, device_id: int):
-        # Start with creating a place holder
-        self.devices[device_id] = Device(device_id)
+    def __init__(self, device_id: int, modbus_agent: ModbusAgent):
+        super().__init__(f"Device: {device_id}", id=f"device-{device_id}")
+        self.device_id = device_id
+        self.modbus_agent = modbus_agent
 
-    def get_device(self, device_id: int):
-        return self.devices.get(device_id)
+    def on_mount(self):
+        """
+        Start the identification worker.
+        """
+        # Use app to schedule; app reference is available after construction when added to TabbedContent
+        self.run_worker(self.identification_worker(), name=f"identify-{self.device_id}")
 
-    @property
-    def active_ids(self):
-        return list(self.devices.keys())
+    async def identification_worker(self):
+        self.state = DeviceState.SCANNING
+        self.status_text = "Trying to identify device..."
+
+        # Request the device ID
+        self.modbus_agent.request(
+            ReportDeviceId(
+                self.device_id,
+                self.on_device_id_report,
+                on_error=self.on_device_id_error,
+                on_no_response=self.on_device_id_no_response
+            )
+        )
+
+    def on_device_id_report(self, pdu: ModbusPDU):
+        self.status_text = f"Identified device: {pdu}"
+        # Decode the PDU
+
+    def on_device_id_error(self, exception_code: int):
+        if exception_code == ExcCodes.ILLEGAL_FUNCTION:
+            self.status_text = "Found device"
+
+    def on_device_id_no_response(self):
+        self.status_text = "No response from device."
+
+    def render(self):
+        # Simple textual status for now
+        return self.status_text
+
+    def substitution_factory(self, ):
+        from rtu_guardian.devices.es_relay.ui.device import Device as ESRelayDevice
+
+        if self.device_id == 44:
+            pane: TabPane = ESRelayDevice(id=f"device-{self.device_id}")

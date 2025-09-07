@@ -8,10 +8,9 @@ from .relay import RelayWidget, RelaysWidget
 from .estop import EStopWidget
 
 
-class RelayDeviceWidget(TabPane):
+class Device(TabPane):
     def __init__(self, id):
-        super().__init__(f"Relay #{id}")
-        self.idevice_d = id
+        super().__init__(f"Relay #{id}", id=f"device-{id}")
 
     def compose(self):
         with TabbedContent():

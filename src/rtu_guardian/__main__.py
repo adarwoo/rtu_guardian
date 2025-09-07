@@ -4,7 +4,6 @@ import os
 from textual.features import parse_features
 
 from rtu_guardian.ui.app import RTUGuardian
-from rtu_guardian.modbus.agent import ModbusAgent
 from rtu_guardian.config import config
 
 def setup_debug():
@@ -27,16 +26,11 @@ def setup_debug():
 async def main():
     setup_debug()
 
-    requests = asyncio.Queue()
+    app = RTUGuardian()
 
-    agent = ModbusAgent(requests)
-    app = RTUGuardian(agent)
-    agent.set_app(app)
-
-    # Run the Textual TUI and the modbus client concurrently
+    # Run the Textual TUI
     await asyncio.gather(
         app.run_async(),
-        agent.run_async()
     )
 
 if __name__ == '__main__':

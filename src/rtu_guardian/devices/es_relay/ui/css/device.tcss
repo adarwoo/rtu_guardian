@@ -1,13 +1,4 @@
-Screen {
-   align: center middle;
-
-   #devices {
-      width: 100%;
-      height: 100%;
-   }
-}
-
-RelayWidget {
+Device {
    background: $boost;
    height: 13;
    width: auto;
