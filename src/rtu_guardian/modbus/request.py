@@ -76,7 +76,11 @@ class ReadHoldingRegisters(Request):
     ADD_ARGS = {'address': 0, 'count': 1}
 
     async def on_execute(self, client: AsyncModbusSerialClient):
-        return await client.read_holding_registers(self.address, device_id=self.device_id, count=self.count)
+        return await client.read_holding_registers(
+            self.address,
+            device_id=self.device_id,
+            count=self.count
+        )
 
 class ReadCoils(Request):
     ADD_ARGS = {'address': 0, 'count': 1}
@@ -86,4 +90,21 @@ class ReadCoils(Request):
     Read coils (digital outputs).
     """
     async def on_execute(self, client: AsyncModbusSerialClient):
-        return await client.read_coils(device_id=self.device_id, address=self.address, count=self.count)
+        return await client.read_coils(
+            device_id=self.device_id,
+            address=self.address,
+            count=self.count
+        )
+    
+class ReadDeviceInformation(Request):
+    """
+    Modbus Function code 0x2B/0x0E
+    """
+    ADD_ARGS = {'read_code': 0, 'object_id': 1}
+
+    async def on_execute(self, client):
+        return await client.read_device_information(
+            device_id=self.device_id,
+            read_code=self.read_code,
+            object_id=self.object_id
+        )

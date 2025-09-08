@@ -29,9 +29,8 @@ async def main():
     app = RTUGuardian()
 
     # Run the Textual TUI
-    await asyncio.gather(
-        app.run_async(),
-    )
+    await app.run_async()
+
 
 if __name__ == '__main__':
     asyncio.run(main())
