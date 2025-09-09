@@ -13,7 +13,7 @@ class Device(Container):
         super().__init__()
 
     def compose(self):
-    with TabbedContent():
+        with TabbedContent():
             with TabPane("Device Information"):
                 yield InfoWidget()
             with TabPane("Infeed"):
