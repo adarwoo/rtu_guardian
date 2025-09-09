@@ -24,13 +24,9 @@ def setup_debug():
         os.environ["TEXTUAL"] = ",".join(sorted(features))
 
 async def main():
-    setup_debug()
-
-    app = RTUGuardian()
-
-    # Run the Textual TUI
-    await app.run_async()
+    await RTUGuardian().run_async()
 
 
 if __name__ == '__main__':
+    setup_debug()
     asyncio.run(main())

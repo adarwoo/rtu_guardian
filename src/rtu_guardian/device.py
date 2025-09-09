@@ -1,15 +1,19 @@
 import asyncio
 import re
-
-from pymodbus.constants import ExcCodes
-from textual.widgets import TabPane
-from textual.reactive import reactive
 from enum import Enum, auto
+
+from textual.widgets import TabPane, TabbedContent, Tab
+from textual.containers import Container
+from textual.reactive import reactive
 
 from pymodbus.pdu import ModbusPDU
 
 from rtu_guardian.modbus.agent import ModbusAgent
 from rtu_guardian.modbus.request import ReportDeviceId, ReadDeviceInformation
+
+CSS_KNOWN_DEVICE = "known-device"
+CSS_UNKNOWN_DEVICE = "unknown-device"
+CSS_DISCONNECTED_DEVICE = "disconnected-device"
 
 
 class DeviceState(Enum):
@@ -30,11 +34,12 @@ class Device(TabPane):
     The Device handles all outgoing communication with the device, through the
     agent.
     """
+    title = reactive("?")
     state = reactive(DeviceState.INITIAL)
     status_text = reactive("Scanning for device...")
 
     def __init__(self, device_id: int, modbus_agent: ModbusAgent):
-        super().__init__(f"Device: {device_id}", id=f"device-{device_id}")
+        super().__init__(f"?@{device_id}", id=f"device-{device_id}")
         self.device_id = device_id
         self.modbus_agent = modbus_agent
 
@@ -68,13 +73,14 @@ class Device(TabPane):
         """ The device replied, but our factory cannot identify """
         # Decode the PDU
         # TODO
-        id = 0
-        name = ""
+        id = pdu.identifier[0]
+        state = pdu.identifier[1]
+        name = pdu.identifier[2:]
+        name = name.decode("ascii", errors="ignore")
 
         # Pass the ID and name to the factory
-        if not self.process(id=id, name=name):
-            self.status_text = f"Unknown device: {id}/{name}"
-            self.state = DeviceState.UNKNOWN           
+        if not self.process_and_substitute(id=id, name=name):
+            self.on_device_id_error()
 
     def on_device_id_error(self, exception_code: int):
         self.status_text = "No device ID returned. Attempting to read device information"
@@ -91,6 +97,8 @@ class Device(TabPane):
         )
 
     def on_no_response(self):
+        # Update the title to reflect the device
+        self.set_title_prefix("unknown", CSS_UNKNOWN_DEVICE)
         self.status_text = "No response from device."
         self.state = DeviceState.NO_REPLY
 
@@ -98,6 +106,7 @@ class Device(TabPane):
         self.run_worker(self.identification_worker(), name=f"identify-{self.device_id}")
 
     def on_device_info_error(self, exception_code: int):
+        self.set_title_prefix("unknown", CSS_UNKNOWN_DEVICE)
         self.status_text = "Cannot identify device"
         self.state = DeviceState.UNKNOWN
 
@@ -106,27 +115,59 @@ class Device(TabPane):
         Process the device info
         """
         # Decode the PDU
-        # TODO -> Should the request do it? Probably
-        
+        try:
+            identifier = pdu.identifier
+            dev_id = identifier[0]
+            name_bytes = identifier[2:]
+            dev_name = name_bytes.decode("ascii", errors="ignore")
+
+            if not self.process_and_substitute(id=dev_id, name=dev_name):
+                self.status_text = "Unknown device"
+                self.state = DeviceState.UNKNOWN
+                self.set_title_prefix("unknown", CSS_UNKNOWN_DEVICE)
+        except Exception:
+            self.status_text = "Malformed device information"
+            self.state = DeviceState.UNKNOWN
+            self.set_title_prefix("unknown", CSS_UNKNOWN_DEVICE)
+
+
         # Pass to the factory
-        if not self.process(id=id, name=name):
-            self.status_text = f"Unknown device: {id}/{name}"
-            self.state = DeviceState.UNKNOWN           
+            pass
 
     def render(self):
         # Simple textual status for now
         return self.status_text
 
-    def process(self, *, name: str="", id: int=0 ):
-        """ Process the information and substitute content is device is known """
-        pane: TabPane = None
+    def set_title_prefix(self, name: str, class_to_use: str):
+        """ Set the title prefix for the device tab """
+        tab = self.app.query_one("#devices").query_one(
+            f"#--content-tab-device-{self.device_id}", Tab
+        )
 
-        if id == 44 or re.match("RELAY"):
-            from rtu_guardian.devices.es_relay.ui.device import Device
-            pane: TabPane = Device(id=f"device-{self.device_id}")
-        elif ...:
+        tab.reset_styles()
+        tab.add_class(class_to_use)
+
+        tab.label = f"{name}@{self.device_id}"
+
+    def process_and_substitute(self, *, name: str="", id: int=0 ):
+        """ Process the information and substitute content is device is known """
+        pane = None
+
+        if id == 44 and re.match(r"MBR\d{1,2}-ES", name):
+            from rtu_guardian.devices.relay_es.device import Device as RelayDevice
+
+            pane = RelayDevice()
+
+            # Trim the version from the name
+            name = name[:name.find('-ES') + 3]
+
+        # TODO Add more as required
 
         if pane:
+            self.set_title_prefix(name, CSS_KNOWN_DEVICE)
             self.state = DeviceState.IDENTIFIED
-            # Substitute!
-            # TODO
+
+            self.remove_children()   # wipe old status
+            self.mount(pane) # Replace with device-specific UI (container)
+
+        return pane is not None

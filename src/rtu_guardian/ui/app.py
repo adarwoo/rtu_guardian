@@ -1,18 +1,15 @@
 import asyncio
 import logging
-from textual.widgets import Header, Footer, TabbedContent, TabPane
+
+from textual.widgets import Header, Footer, TabbedContent
 from textual.app import App
 from textual.reactive import reactive
-from textual.message import Message
 
 from rtu_guardian.device import Device
 from rtu_guardian.config import config
 
-from rtu_guardian.modbus.request import Request
 from rtu_guardian.ui.config_dialog import ConfigDialog, ConfigDialogClosed
 from rtu_guardian.modbus.agent import ModbusAgent
-
-from rtu_guardian.devices.es_relay.ui.device import Device as ESRelayDevice
 
 
 class TextualLogHandler(logging.Handler):

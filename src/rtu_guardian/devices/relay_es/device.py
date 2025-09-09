@@ -8,12 +8,12 @@ from .relay import RelayWidget, RelaysWidget
 from .estop import EStopWidget
 
 
-class Device(TabPane):
-    def __init__(self, id):
-        super().__init__(f"Relay #{id}", id=f"device-{id}")
+class Device(Container):
+    def __init__(self):
+        super().__init__()
 
     def compose(self):
-        with TabbedContent():
+    with TabbedContent():
             with TabPane("Device Information"):
                 yield InfoWidget()
             with TabPane("Infeed"):

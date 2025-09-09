@@ -164,3 +164,15 @@ RelaysWidget {
       width: 100%;
    }
 }
+
+.known-device {
+   color: green;
+}
+
+.unknown-device {
+   color: yellow;
+}
+
+.disconnected-device {
+   color: red;
+}
