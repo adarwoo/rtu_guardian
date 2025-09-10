@@ -1,6 +1,6 @@
 import optparse
 
-from .config import VALID_BAUD_RATES
+from .constants import VALID_BAUD_RATES
 
 
 # Parse command line options
@@ -42,7 +42,7 @@ device_ids = []
 for arg in args:
     try:
         device_id = int(arg)
-        
+
         if 1 <= device_id <= 246:
             device_ids.append(device_id)
         else:

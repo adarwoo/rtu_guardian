@@ -2,8 +2,8 @@ from textual.screen import ModalScreen
 from textual.widgets import Button, LoadingIndicator, Label
 from textual.containers import Vertical, Horizontal
 from textual.reactive import reactive
+from .constants import RECOVERY_ID
 
-RECOVERY_ID = 247
 
 INFO = """
 [b]To recover a device, follow these steps:[/b]

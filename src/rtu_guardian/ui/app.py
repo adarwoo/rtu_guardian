@@ -60,22 +60,17 @@ class RTUGuardian(App):
 
     # Convenience
     @property
-    def active_ids(self) -> map[int, str]:
-        # Query all panes with id starting with "device-"
-        panes = self.tab_content.query("Device")
-        
-        # Extract numeric id from pane id (assumes id="device-<number>")
-        ids = {}
-        tabs = self.query_one("#devices").query(Tab)
-
+    def active_addresses(self) -> dict[int, str]:
+        # Query all tabs in the TabbedContent with id starting with "device-"
+        tabs = self.tab_content.query(Tab)
+        ids: dict[int, str] = {}
         for tab in tabs:
             try:
-                id, address = tab.label.split("@")
-                num = int(id)
-                ids[num] = address
+                type_id_str, address = tab.label_text.split("@")
+                num = int(address)
+                ids[num] = type_id_str
             except Exception:
                 continue
-
         return ids
 
     def check_action(self, action: str, parameters: tuple[object, ...]) -> bool | None:
@@ -108,7 +103,7 @@ class RTUGuardian(App):
         )
 
         # Re-open any previously open devices
-        for device_id in config['open_devices']:
+        for device_id in config['device_ids']:
             await self.process_add_device(device_id)
 
     async def on_shutdown(self) -> None:
@@ -121,6 +116,8 @@ class RTUGuardian(App):
         yield self.tab_content
 
     def action_save(self):
+        # Update config device_ids
+        config.update({"device_ids": list(self.active_addresses.keys())})
         config.save()
         self.can_save = False
 
@@ -134,7 +131,7 @@ class RTUGuardian(App):
     async def action_add(self):
         from .add_device_dialog import AddDeviceDialog
 
-        dialog = AddDeviceDialog(self.active_ids)
+        dialog = AddDeviceDialog(self.active_addresses)
         await self.push_screen(dialog, self.process_add_device)
 
     async def action_remove(self):
@@ -142,46 +139,28 @@ class RTUGuardian(App):
         if self.tab_content.active:
             self.tab_content.remove_pane(self.tab_content.active)
 
+            # Update config device_ids
+            config.update({"device_ids": list(self.active_addresses.keys())})
+
     async def process_add_device(self, device_id: int):
         """Create and insert a new device tab in numeric order (skip duplicates)."""
         # Create a generic device. The device worker will attempt to identify the actual device
         pane = Device(device_id, self.modbus_agent)
 
         # Determine pane to insert before (the first existing id greater than new one)
-        next_higher = next((i for i in self.active_ids if i > device_id), None)
+        next_higher = next((i for i in self.active_addresses if i > device_id), None)
         before_pane = self.tab_content.query_one(f"#device-{next_higher}") if next_higher is not None else None
         self.tab_content.add_pane(pane, before=before_pane)
 
-        # Optionally focus new pane
+        # Focus added new pane
         self.tab_content.active = pane.id
 
-    async def action_scan(self):
-        from .scan_dialog import ScanState, ScanDialog
-        scan_results = {
-            44: ScanState.FOUND,
-            43: ScanState.PRESUMED,
-            78: ScanState.NOT_FOUND,
-            100: ScanState.UNKNOWN,
-            1: ScanState.NOT_FOUND,
-            2: ScanState.NOT_FOUND,
-            3: ScanState.NOT_FOUND,
-            4: ScanState.NOT_FOUND,
-            5: ScanState.NOT_FOUND,
-            6: ScanState.NOT_FOUND,
-            7: ScanState.NOT_FOUND,
-            8: ScanState.NOT_FOUND,
-            9: ScanState.NOT_FOUND,
-            10: ScanState.NOT_FOUND,
-            11: ScanState.NOT_FOUND,
-            12: ScanState.NOT_FOUND,
-            13: ScanState.NOT_FOUND,
-            14: ScanState.NOT_FOUND,
-            15: ScanState.NOT_FOUND,
-            18: ScanState.INFIRMED,
-            19: ScanState.CONFIRMED
-        }  # {id: ScanState}
+        # Update config device_ids
+        config.update({"device_ids": list(self.active_addresses.keys())})
 
-        await self.push_screen(ScanDialog(scan_results=scan_results))
+    async def action_scan(self):
+        from .scan_dialog import ScanDialog
+        await self.push_screen(ScanDialog())
 
     async def on_config_dialog_closed(self, message: ConfigDialogClosed):
         if config.is_usable:

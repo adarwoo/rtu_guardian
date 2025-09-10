@@ -7,23 +7,9 @@ from appdirs import user_config_dir
 
 from rtu_guardian.optargs import options, device_ids
 
-
-APP_NAME = "rtu_guardian"
-CONFIG_FILENAME = "config.toml"
-
-# Config schema with defaults
-CONFIG_SCHEMA = {
-    "com_port": "", # Empty string means ask on startup
-    "baud": 9600,
-    "stop": 1,
-    "parity": "N",
-    "device_ids": [],
-    "check_comm": True
-}
-
-# Valid baud values
-VALID_BAUD_RATES = [300, 600, 1200, 2400, 4800, 9600, 19200, 38400, 57600, 115200]
-
+from .constants import (
+    APP_NAME, CONFIG_FILENAME, CONFIG_SCHEMA, VALID_BAUD_RATES, RECOVERY_ID
+)
 
 class Config(dict):
     """Global configuration manager for Relay Guardian, behaves like a dict."""
@@ -55,6 +41,11 @@ class Config(dict):
 
         if cfg["parity"] not in ["N", "E", "O"]:
             raise ValueError(f"Invalid parity: {cfg['parity']}")
+
+        if cfg["device_ids"]:
+            for device_id in cfg["device_ids"]:
+                if not (1 <= device_id < RECOVERY_ID):
+                    raise ValueError(f"Invalid device ID: {device_id}")
 
     @staticmethod
     def _get_config_path():

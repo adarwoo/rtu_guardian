@@ -10,7 +10,7 @@ class AddDeviceDialog(ModalScreen):
 
     CSS_PATH = "css/add_device_dialog.tcss"
 
-    def __init__(self, active_ids):
+    def __init__(self, active_addresses):
         super().__init__()
 
     def compose(self):
@@ -42,7 +42,7 @@ class AddDeviceDialog(ModalScreen):
         if text.isdigit():
             value = int(text)
             if 1 <= value < RECOVERY_ID:
-                if value in app.active_ids:
+                if value in app.active_addresses:
                     message = f"⚠ Device ID {value} already in use!"
                 else:
                     valid = True
@@ -76,5 +76,5 @@ class AddDeviceDialog(ModalScreen):
 
         if text.isdigit():
             value = int(text)
-            if 1 <= value <= 246 and value not in app.active_ids:
+            if 1 <= value <= 246 and value not in app.active_addresses:
                 self.dismiss(value)
