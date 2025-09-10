@@ -42,6 +42,7 @@ device_ids = []
 for arg in args:
     try:
         device_id = int(arg)
+        
         if 1 <= device_id <= 246:
             device_ids.append(device_id)
         else:

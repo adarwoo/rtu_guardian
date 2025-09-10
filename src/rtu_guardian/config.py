@@ -1,11 +1,11 @@
 import os
-
-import serial.tools.list_ports
 import toml
+import serial.tools.list_ports
+
 from asyncio.log import logger
 from appdirs import user_config_dir
 
-from .exceptions import TerminalError
+from rtu_guardian.optargs import options, device_ids
 
 
 APP_NAME = "rtu_guardian"
@@ -33,6 +33,7 @@ class Config(dict):
         self._has_unsaved_changes = False
         self._is_usable = False
         self._load()
+        self.apply_command_line_overrides()
 
     @property
     def is_usable(self):
@@ -129,6 +130,41 @@ class Config(dict):
 
         # Check if the comm port is valid
         self._is_usable = self['com_port'] in Config.list_comports()
+
+    def apply_command_line_overrides(self):
+        """Apply any command line overrides to the config."""
+        changed = False
+
+        if options.comport:
+            self['com_port'] = options.comport
+            changed = True
+
+        if options.baudrate:
+            self['baud'] = options.baudrate
+            changed = True
+
+        if options.serial:
+            serial_opt = options.serial.upper()
+            if len(serial_opt) == 3 and serial_opt[0] == '8':
+                self['stop'] = int(serial_opt[2])
+                self['parity'] = serial_opt[1]
+                changed = True
+
+        if options.zero:
+            self['device_ids'] = []
+            changed = True
+        elif device_ids:
+            self['device_ids'] = options.device_ids
+            changed = True
+
+        if changed:
+            try:
+                self._validate_config()
+            except ValueError as e:
+                logger.error(f"Command line override error: {e}")
+            else:
+                self._has_unsaved_changes = True
+                self._is_usable = self['com_port'] in Config.list_comports()
 
 
 # Global config dictionary, always valid and up-to-date

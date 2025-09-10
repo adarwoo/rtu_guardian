@@ -5,6 +5,10 @@ from textual.widgets import Label, Button, Static
 from textual.containers import Vertical, Horizontal
 from textual.reactive import reactive
 
+from rtu_guardian.ui.app import RTUGuardian
+from rtu_guardian.device import DeviceScanner, DeviceState
+from rtu_guardian.modbus.agent import ModbusAgent
+
 
 RECOVERY_ID = 247
 
@@ -114,6 +118,8 @@ class ScanDialog(ModalScreen):
     def __init__(self, scan_results=None):
         super().__init__()
         self.scan_results = scan_results or {}
+        self.device_address = 1
+        self.existing_ids = set()
 
     def compose(self):
         with Horizontal(id="scan-dialog"):
@@ -138,3 +144,38 @@ class ScanDialog(ModalScreen):
         self.query_one("#scan-dialog").border_title = "Scan RTU Devices"
         self.query_one("#scan-legend").border_title = "Legend"
         self.query_one("#update").tooltip = """All the devices so far identified, are added"""
+
+        # Start the worker to perform the scan
+        self.run_worker(self.perform_scan(), name="scan-devices")
+
+    async def perform_scan(self):
+        """Perform the scanning of Modbus RTU devices from ID 1 to 247."""
+        app: RTUGuardian = self.app
+        modbus_agent: ModbusAgent = app.modbus_agent
+
+        for addr in range(1, RECOVERY_ID):
+            self.device_address = addr
+            self.scanner = DeviceScanner(modbus_agent, addr, self.update_scan_result)
+            await self.scanner.start()
+
+    def update_scan_result(self, state: DeviceState, status_text: str):
+        """Callback from DeviceScanner to update the scan results."""
+        app: RTUGuardian = self.app
+        scan_matrix: ScanMatrix = self.query_one(ScanMatrix)
+
+        previous_device_id = app.active_ids.get(self.device_address, None)
+
+        if state == DeviceState.IDENTIFIED:
+            if previous_device_id is None:
+                scan_matrix.update_cell(self.device_address, ScanState.FOUND)
+            elif previous_device_id != self.scanner.device_id:
+                scan_matrix.update_cell(self.device_address, ScanState.UNKNOWN)
+            else:
+                scan_matrix.update_cell(self.device_address, ScanState.CONFIRMED)
+        elif state == DeviceState.UNKNOWN:
+            scan_matrix.update_cell(self.device_address, ScanState.UNKNOWN)
+        elif state == DeviceState.NO_REPLY:
+            if previous_device_id is not None:
+                scan_matrix.update_cell(self.device_address, ScanState.INFIRMED)
+            else:
+                scan_matrix.update_cell(self.device_address, ScanState.NOT_FOUND)

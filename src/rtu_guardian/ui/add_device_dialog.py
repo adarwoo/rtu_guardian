@@ -1,8 +1,9 @@
 from textual.screen import ModalScreen
 from textual.widgets import Static, Button, Input, Label
 from textual.containers import Vertical, Horizontal
-from textual.reactive import reactive
 
+from rtu_guardian.ui.app import RTUGuardian
+from rtu_guardian.ui.scan_dialog import RECOVERY_ID
 
 class AddDeviceDialog(ModalScreen):
     """Dialog to scan for Modbus RTU devices (ID 1 to 247) with ScanMatrix."""
@@ -11,7 +12,6 @@ class AddDeviceDialog(ModalScreen):
 
     def __init__(self, active_ids):
         super().__init__()
-        self.active_ids = active_ids
 
     def compose(self):
         with Vertical(id="add-device-dialog") as root:
@@ -37,11 +37,12 @@ class AddDeviceDialog(ModalScreen):
         text = event.value.strip()
         valid = False
         message = ""
+        app: RTUGuardian = self.app
 
         if text.isdigit():
             value = int(text)
-            if 1 <= value <= 246:
-                if value in self.active_ids:
+            if 1 <= value < RECOVERY_ID:
+                if value in app.active_ids:
                     message = f"⚠ Device ID {value} already in use!"
                 else:
                     valid = True
@@ -71,8 +72,9 @@ class AddDeviceDialog(ModalScreen):
     def on_input_submitted(self, event: Input.Submitted) -> None:
         # Treat pressing return as clicking "Add"
         text = event.value.strip()
+        app: RTUGuardian = self.app
 
         if text.isdigit():
             value = int(text)
-            if 1 <= value <= 246 and value not in self.active_ids:
+            if 1 <= value <= 246 and value not in app.active_ids:
                 self.dismiss(value)

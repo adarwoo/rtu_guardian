@@ -1,7 +1,7 @@
 import asyncio
 import logging
 
-from textual.widgets import Header, Footer, TabbedContent
+from textual.widgets import Header, Footer, TabbedContent, Tab
 from textual.app import App
 from textual.reactive import reactive
 
@@ -60,23 +60,23 @@ class RTUGuardian(App):
 
     # Convenience
     @property
-    def active_ids(self) -> list[int]:
+    def active_ids(self) -> map[int, str]:
         # Query all panes with id starting with "device-"
         panes = self.tab_content.query("Device")
+        
         # Extract numeric id from pane id (assumes id="device-<number>")
+        ids = {}
+        tabs = self.query_one("#devices").query(Tab)
 
-        ids = []
-
-        for pane in panes:
+        for tab in tabs:
             try:
-                pane_id = getattr(pane, "id", "")
-                if pane_id and pane_id.startswith("device-"):
-                    num = int(pane_id.split("-", 1)[1])
-                    ids.append(num)
+                id, address = tab.label.split("@")
+                num = int(id)
+                ids[num] = address
             except Exception:
                 continue
 
-        return sorted(ids)
+        return ids
 
     def check_action(self, action: str, parameters: tuple[object, ...]) -> bool | None:
         """Check if an action may run."""
@@ -106,6 +106,10 @@ class RTUGuardian(App):
         self.run_worker(
             self.modbus_agent.run_async(), name="modbus_agent"
         )
+
+        # Re-open any previously open devices
+        for device_id in config['open_devices']:
+            await self.process_add_device(device_id)
 
     async def on_shutdown(self) -> None:
         # Tell the agent to stop gracefully
