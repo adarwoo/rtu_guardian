@@ -45,7 +45,7 @@ class ConfigDialog(ModalScreen):
                 Button("Set", id="ok"),
             ]
 
-            if not config.is_usable:
+            if config.is_usable:
                 buttons.append(Button("Cancel", id="cancel"))
 
             vs = VerticalScroll(

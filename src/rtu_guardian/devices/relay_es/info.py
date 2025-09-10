@@ -1,5 +1,12 @@
+from typing import Optional, TypeVar
+
 from textual.widgets import DataTable, Button
+from textual.widget import Widget
 from textual.containers import HorizontalGroup, Vertical
+
+from rtu_guardian.device import Device
+from rtu_guardian.modbus.agent import ModbusAgent
+from rtu_guardian.modbus.request import ReadDeviceInformation
 
 from .static_status_list import StaticStatusList
 
@@ -15,11 +22,16 @@ ROWS = [
 ]
 
 class InfoWidget(HorizontalGroup):
+    def __init__(self, agent: ModbusAgent, device_address: int):
+        super().__init__()
+        self.agent = agent
+        self.device_address = device_address
 
     def compose(self):
         with Vertical():
             yield DataTable(show_header=False, show_cursor=False)
             yield Button("Identify")
+
         yield StaticStatusList([
             "Relay fault",
             "Infeed polarity",
@@ -39,3 +51,11 @@ class InfoWidget(HorizontalGroup):
         selection = self.query_one(StaticStatusList)
         selection.border_title = "Faults"
         selection.bin_status = 0b0000010101
+
+        self.run_worker(self.collect_info_worker(), name=f"query-info")
+
+    async def collect_info_worker(self):
+        # Start a worker to get the static data
+        self.agent.request(
+            ReadDeviceInformation(self.device_address)
+        )

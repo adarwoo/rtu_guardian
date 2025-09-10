@@ -154,9 +154,10 @@ class Device(TabPane):
         pane = None
 
         if id == 44 and re.match(r"MBR\d{1,2}-ES", name):
-            from rtu_guardian.devices.relay_es.device import Device as RelayDevice
+            from rtu_guardian.devices.relay_es.relay_device import RelayDevice
 
-            pane = RelayDevice()
+            # Create the device widget
+            pane = RelayDevice(self.modbus_agent, self.device_id)
 
             # Trim the version from the name
             name = name[:name.find('-ES') + 3]

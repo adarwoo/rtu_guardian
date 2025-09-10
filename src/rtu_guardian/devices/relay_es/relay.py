@@ -3,6 +3,8 @@ from textual.widgets import Static, Button, Label, Rule, DataTable, Switch
 from textual.containers import HorizontalGroup, Vertical, Grid, VerticalGroup, Horizontal
 from textual.reactive import reactive
 
+from rtu_guardian.modbus.agent import ModbusAgent
+
 ROWS = [
     ("Status", "???"),
     ("Cycles", "0"),
@@ -20,24 +22,22 @@ class RelayWidget(HorizontalGroup):
 
     def __init__(
         self,
+        agent: ModbusAgent,
+        device_address: int,
         relay_id: int,
-        status: str = "opened",
-        cycles: int = 0,
-        min_on: float = 0.0,
-        min_off: float = 0.0,
-        disabled: bool = False,
-        infit_faults: bool = False,
-        comm_lost: bool = False,
     ):
         super().__init__()
+        self.agent = agent
+        self.device_address = device_address
         self.relay_id = relay_id
-        self.status = status
-        self.cycles = cycles
-        self.min_on = min_on
-        self.min_off = min_off
-        self.disabled = disabled
-        self.infit_faults = infit_faults
-        self.comm_lost = comm_lost
+
+        self.status = "???"
+        self.cycles = 0
+        self.min_on = 0
+        self.min_off = 0
+        self.disabled = False
+        self.infit_faults = False
+        self.comm_lost = False
 
     def compose(self):
         # Left: Open/Close buttons (vertical)
@@ -56,8 +56,14 @@ class RelayWidget(HorizontalGroup):
         table.add_columns(*ROWS[0])
         table.add_rows(ROWS)
 
+
 class RelaysWidget(VerticalGroup):
     relay_status = reactive(0b00000000)
+
+    def __init__(self, agent: ModbusAgent, device_address: int):
+        super().__init__()
+        self.agent = agent
+        self.device_address = device_address
 
     def compose(self):
         with HorizontalGroup(id="relays-header"):

@@ -3,6 +3,8 @@ from textual.widgets import DataTable, Button, SelectionList, Input, Rule, Stati
 from textual.containers import VerticalGroup, HorizontalGroup, Vertical, Horizontal
 from textual.reactive import reactive
 
+from rtu_guardian.modbus.agent import ModbusAgent
+
 from .static_status_list import StaticStatusList
 
 
@@ -12,6 +14,11 @@ ROWS = [
 ]
 
 class EStopWidget(VerticalGroup):
+    def __init__(self, agent: ModbusAgent, device_address: int):
+        super().__init__()
+        self.agent = agent
+        self.device_address = device_address
+
     def compose(self):
         with HorizontalGroup():
             with VerticalGroup():
