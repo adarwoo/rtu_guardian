@@ -5,7 +5,6 @@ from enum import Enum, auto
 from textual.widgets import TabPane, Tab
 from textual.containers import Container
 from textual.reactive import reactive
-from textual.worker import Worker
 
 from pymodbus.pdu import ModbusPDU
 

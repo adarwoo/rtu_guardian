@@ -35,3 +35,4 @@ CSS_DISCONNECTED_DEVICE = "disconnected-device"
 # Modbus constants
 #
 RECOVERY_ID = 247
+MODBUS_TIMEOUT = 0.5  # seconds

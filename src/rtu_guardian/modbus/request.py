@@ -1,5 +1,4 @@
 from abc import ABC, abstractmethod
-import asyncio
 from typing import Any, Callable, Awaitable, Optional
 
 from pymodbus.client import AsyncModbusSerialClient
@@ -95,12 +94,12 @@ class ReadCoils(Request):
             address=self.address,
             count=self.count
         )
-    
+
 class ReadDeviceInformation(Request):
     """
     Modbus Function code 0x2B/0x0E
     """
-    ADD_ARGS = {'read_code': 0, 'object_id': 1}
+    ADD_ARGS = {'read_code': 1, 'object_id': 0}
 
     async def on_execute(self, client):
         return await client.read_device_information(

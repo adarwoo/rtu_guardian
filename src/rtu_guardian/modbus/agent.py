@@ -6,6 +6,7 @@ from pymodbus.client import AsyncModbusSerialClient
 
 from rtu_guardian.config import config
 from rtu_guardian.modbus.request import Request
+from rtu_guardian.constants import MODBUS_TIMEOUT
 
 
 class ModbusAgent:
@@ -38,7 +39,7 @@ class ModbusAgent:
                     baudrate=config['baud'],
                     stopbits=config['stop'],
                     parity=config['parity'],
-                    timeout=0.1,
+                    timeout=MODBUS_TIMEOUT,
                     retries=1,
                     framer=FramerType.RTU
                 )
