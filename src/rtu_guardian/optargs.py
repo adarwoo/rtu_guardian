@@ -1,6 +1,6 @@
 import optparse
 
-from .constants import VALID_BAUD_RATES
+from .constants import VALID_BAUD_RATES, RECOVERY_ID
 
 
 # Parse command line options
@@ -43,9 +43,9 @@ for arg in args:
     try:
         device_id = int(arg)
 
-        if 1 <= device_id <= 246:
+        if 1 <= device_id < RECOVERY_ID:
             device_ids.append(device_id)
         else:
-            parser.error(f"Invalid device ID: {arg}. Valid values are 1 to 246.")
+            parser.error(f"Invalid device ID: {arg}. Valid values are 1 to {RECOVERY_ID-1}.")
     except ValueError:
-        parser.error(f"Invalid device ID: {arg}. Must be an integer between 1 and 246.")
+        parser.error(f"Invalid device ID: {arg}. Must be an integer between 1 and {RECOVERY_ID-1}.")
