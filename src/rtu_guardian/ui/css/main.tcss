@@ -66,10 +66,8 @@ InfeedWidget Button {
 InfoWidget {
    background: $boost;
    height: 16;
-   width: auto;
-   max-width: 64;
+   max-width: 72;
    margin: 1;
-   min-width: 90;
    border: round $primary;
    padding: 1 1;
 
@@ -81,6 +79,22 @@ InfoWidget {
       border: round $primary;
       width: 28;
       height: 12;
+   }
+
+   DataTable {
+      margin-right: 1;
+   }
+
+   Horizontal {
+      margin: 1 1 0 2;
+      align-horizontal: center;
+      width: 100%;
+
+      Static {
+         padding: 1 1;
+         height: 3;
+         width: 10;
+      }
    }
 }
 

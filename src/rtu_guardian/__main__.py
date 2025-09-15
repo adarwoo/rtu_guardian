@@ -1,4 +1,6 @@
 import asyncio
+import faulthandler
+import logging
 import os
 
 from textual.features import parse_features
@@ -22,6 +24,15 @@ def setup_debug():
         features.add("devtools")
 
         os.environ["TEXTUAL"] = ",".join(sorted(features))
+
+    faulthandler.enable()
+    os.environ["PYTHONASYNCIODEBUG"] = "1"
+    asyncio.get_event_loop().set_debug(True)
+
+    import sys, logging
+    def hook(exc_type, exc, tb):
+        logging.error("Uncaught top-level", exc_info=(exc_type, exc, tb))
+    sys.excepthook = hook
 
 async def main():
     await RTUGuardian().run_async()
