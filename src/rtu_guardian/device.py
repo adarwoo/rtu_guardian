@@ -1,5 +1,6 @@
 import asyncio
 import re
+import traceback
 from enum import Enum, auto
 from logging import Logger
 
@@ -249,6 +250,7 @@ class DeviceFactory:
                 from rtu_guardian.devices.pneumatic.pneumatic_device import PneumaticDevice
                 return PneumaticDevice
         except Exception as e:
-            logger.error(f"Error loading device module for {name}: {e}")
+            logger.error(f"Error loading device module for {name}:\n {e}")
+            logger.error(traceback.format_exc())
 
         return None

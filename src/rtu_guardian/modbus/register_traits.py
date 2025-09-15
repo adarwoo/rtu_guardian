@@ -40,7 +40,6 @@ class RegisterRef:
 def _collect_registers(
     cls,
     kind: RegisterKind,
-    writable: bool,
 ) -> dict[str, RegisterRef]:
     """Collect UPPER_CASE class attributes into sorted RegisterRefs."""
     registry: dict[str, RegisterRef] = {}
@@ -70,7 +69,7 @@ def _attach_registry_api(cls, registry: dict[str, RegisterRef]):
 
     @classmethod
     def all(cls) -> Sequence[RegisterRef]:
-        return tuple(cls._registry.values())
+        return list(cls._registry.values())
 
     @classmethod
     def by_name(cls, name: str) -> RegisterRef:
@@ -96,7 +95,7 @@ def _attach_registry_api(cls, registry: dict[str, RegisterRef]):
 def modbus_input_registers(readable: bool = True):
     """Decorator for input register groups (read-only)."""
     def wrapper(cls):
-        registry = _collect_registers(cls, RegisterKind.INPUT, writable=False)
+        registry = _collect_registers(cls, RegisterKind.INPUT)
         _attach_registry_api(cls, registry)
         cls._KIND = RegisterKind.INPUT
         cls._WRITABLE = False
@@ -119,7 +118,7 @@ def modbus_holding_registers(
     """Decorator for holding register groups (read/write)."""
     def wrapper(cls):
         writable = single_writable or group_writable
-        registry = _collect_registers(cls, RegisterKind.HOLDING, writable=writable)
+        registry = _collect_registers(cls, RegisterKind.HOLDING)
         _attach_registry_api(cls, registry)
         cls._KIND = RegisterKind.HOLDING
         cls._WRITABLE = writable
@@ -127,6 +126,9 @@ def modbus_holding_registers(
         if readable:
             @classmethod
             def read(cls, device_id: int, data_handler: Callable[[dict[str, int]], None], *names_or_ids, **kwargs):
+                # If no names_or_ids provided, read all registers in the group
+                if not names_or_ids:
+                    names_or_ids = [ref.name for ref in cls.all()]
                 return _read_collector(cls, device_id, data_handler, ReadHoldingRegisters, *names_or_ids, **kwargs)
             cls.read = read
 
@@ -307,11 +309,13 @@ def _read_collector(
         refs = cls.all()
     else:
         refs = []
-        for name in names_or_ids:
-            if isinstance(name, str):
-                ref = cls.by_name(name.upper())
+        for name_or_id in names_or_ids:
+            if isinstance(name_or_id, str):
+                ref = cls.by_name(name_or_id.upper())
+            elif isinstance(name_or_id, (list, tuple)):
+                ref = cls.by_address(name_or_id[0])
             else:
-                ref = cls.by_address(name)
+                ref = cls.by_address(name_or_id)
             refs.append(ref)
 
     if not refs:

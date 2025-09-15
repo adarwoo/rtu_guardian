@@ -7,27 +7,27 @@ from textual.coordinate import Coordinate
 from rtu_guardian.devices.relay_es.registers import InfeedType
 from rtu_guardian.modbus.agent import ModbusAgent
 
-from rtu_guardian.ui.refreshable import RefreshableWidget
+from .registers import PowerInfeed, StatusAndMonitoring, DeviceControl
+from rtu_guardian.ui.refreshable import modbus_poller
 
-from pymodbus.pdu import ModbusPDU
-
-from .registers import StatusAndMonitoring, DeviceControl
 
 ROWS = [
     "Expected type",
-    "[b magenta]Detected type",
+    "*Detected type",
     "Lower voltage threshold",
-    "[b magenta]Lowest measured voltage",
+    "*Lowest measured voltage",
     "Upper voltage threshold",
-    "[b magenta]Highest measured voltage",
+    "*Highest measured voltage",
     "Current voltage"
 ]
 
 
-class InfeedWidget(VerticalGroup, RefreshableWidget):
+@modbus_poller(interval=0.5)
+class InfeedWidget(VerticalGroup):
     def __init__(self, agent: ModbusAgent, device_address: int):
-        VerticalGroup.__init__(self)
-        RefreshableWidget.__init__(self, agent, device_address, refresh_interval=5.0)
+        super().__init__()
+        self.agent = agent
+        self.device_address = device_address
 
     def compose(self):
         yield DataTable(show_header=False, show_cursor=False)
@@ -43,44 +43,51 @@ class InfeedWidget(VerticalGroup, RefreshableWidget):
         table.zebra_stripes = True
 
         for row in ROWS:
-            # Adding styled and justified `Text` objects instead of plain strings.
-            styled_row = [
-                Text(row, justify="right"),
-                Text("-")
-            ]
+            if row.startswith("*"):
+                # Highlight measured values
+                row = row[1:]
+                styled_row = [
+                    Text(row, justify="right", style="bold magenta"),
+                    Text("-            ", style="bold magenta")
+                ]
+            else:
+                styled_row = [
+                    Text(row, justify="right"),
+                    Text("-            ")
+                ]
 
             table.add_row(*styled_row)
 
-    def on_show(self):
-        super().on_show()
-
-        # Re-request configuration in case it was changed
+    async def on_show(self):
+        # Request configuration items once per show
         self.agent.request(
-            StatusAndMonitoring.read(self.device_address, self.on_read_power_infeed)
+            PowerInfeed.read(self.device_address, self.on_read_power_infeed)
         )
 
-    def on_request_data(self):
+    def on_poll(self):
         """ Request data from the device """
-        self.agent.request(StatusAndMonitoring.build_read(
+        self.agent.request(StatusAndMonitoring.read(
             self.device_address,
+            self.on_read_status_and_monitoring,
             StatusAndMonitoring.INFEED_HIGHEST,
             StatusAndMonitoring.INFEED_LOWEST,
             StatusAndMonitoring.INFEED_TYPE,
             StatusAndMonitoring.INFEED_VOLTAGE,
-            data_handler=self.on_read_status_and_monitoring
         ))
 
     def on_read_power_infeed(self, pdu: dict[str, int]):
         """ Process holding registers """
         table = self.query_one(DataTable)
 
-        voltage_type = InfeedType(pdu["infeed_type"])
+        type = InfeedType(pdu["type"]).name
+        if type == "BELOW_THRESHOLD":
+            type = "Not detected"
         low_threshold = pdu["low_threshold"] / 10.0
         high_threshold = pdu["high_threshold"] / 10.0
 
-        table.update_cell_at(Coordinate(1, 1), f"{voltage_type}")
-        table.update_cell_at(Coordinate(3, 1), f"{high_threshold}")
-        table.update_cell_at(Coordinate(5, 1), f"{low_threshold}")
+        table.update_cell_at(Coordinate(0, 1), f"{type}")
+        table.update_cell_at(Coordinate(2, 1), f"{high_threshold}")
+        table.update_cell_at(Coordinate(4, 1), f"{low_threshold}")
 
     def on_read_status_and_monitoring(self, pdu: dict[str, int]):
         """ Process input registers """
@@ -92,10 +99,10 @@ class InfeedWidget(VerticalGroup, RefreshableWidget):
         lowest_measured_voltage = pdu["infeed_lowest"] / 10.0
         highest_measured_voltage = pdu["infeed_highest"] / 10.0
 
-        table.update_cell_at(Coordinate(2, 1), f"{voltage_type}")
-        table.update_cell_at(Coordinate(4, 1), f"{lowest_measured_voltage}")
-        table.update_cell_at(Coordinate(6, 1), f"{highest_measured_voltage}")
-        table.update_cell_at(Coordinate(7, 1), f"{current_voltage}")
+        table.update_cell_at(Coordinate(1, 1), f"{voltage_type.name}")
+        table.update_cell_at(Coordinate(3, 1), f"{lowest_measured_voltage}")
+        table.update_cell_at(Coordinate(5, 1), f"{highest_measured_voltage}")
+        table.update_cell_at(Coordinate(6, 1), f"{current_voltage}")
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         """ Handle button presses """

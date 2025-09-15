@@ -11,7 +11,7 @@ from rtu_guardian.devices.relay_es.registers import DeviceControl, StatusAndMoni
 from rtu_guardian.modbus.agent import ModbusAgent
 from rtu_guardian.modbus.request import ReadDeviceInformation
 
-from rtu_guardian.ui.refreshable import RefreshableWidget
+from rtu_guardian.ui.refreshable import modbus_poller
 
 from .static_status_list import StaticStatusList
 
@@ -36,10 +36,12 @@ USER_APPLICATION_NAME_OBJECT_CODE = 0x06
 NUMBER_OF_RELAYS_OBJECT_CODE = 0x80
 
 
-class InfoWidget(HorizontalGroup, RefreshableWidget):
+@modbus_poller(interval=0.5)
+class InfoWidget(HorizontalGroup):
     def __init__(self, agent: ModbusAgent, device_address: int):
         HorizontalGroup.__init__(self)
-        RefreshableWidget.__init__(self, agent, device_address, refresh_interval=5.0)
+        self.agent = agent
+        self.device_address = device_address
 
     def compose(self):
         with Vertical():
@@ -104,8 +106,7 @@ class InfoWidget(HorizontalGroup, RefreshableWidget):
             value = pdu.information.get(obj_code, b"").decode('ascii').strip()
             table.update_cell_at(Coordinate(row_idx, 1), value)
 
-    @override
-    def on_request_data(self):
+    def on_poll(self):
         """ Override from RefreshableWidget to request dynamic data periodically """
         try:
             # Request the device health and running hours
@@ -118,7 +119,7 @@ class InfoWidget(HorizontalGroup, RefreshableWidget):
                 )
             )
         except Exception as e:
-            self.log_error(f"Error requesting data: {e}")
+            self.log(f"Error requesting data: {e}", level="error")
 
     def on_status_monitoring_reply(self, pdu: dict[str, int]):
         """ Callback from ReadHoldingRegisters for running time """
