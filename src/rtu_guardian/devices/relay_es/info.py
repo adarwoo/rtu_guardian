@@ -1,11 +1,17 @@
-from textual.widgets import DataTable, Button
+from typing import override
+
+from textual.widgets import DataTable, Switch, Static
 from textual.widget import Text
-from textual.containers import HorizontalGroup, Vertical
+from textual.containers import HorizontalGroup, Vertical, Horizontal
+from textual.coordinate import Coordinate
 
 from pymodbus.pdu.mei_message import ReadDeviceInformationResponse
 
+from rtu_guardian.devices.relay_es.registers import DeviceControl, StatusAndMonitoring
 from rtu_guardian.modbus.agent import ModbusAgent
 from rtu_guardian.modbus.request import ReadDeviceInformation
+
+from rtu_guardian.ui.refreshable import modbus_poller
 
 from .static_status_list import StaticStatusList
 
@@ -17,7 +23,7 @@ ROWS = [
     "Vendor URL",
     "Model name",
     "Number of relays",
-    "Running hours"
+    "Running time"
 ]
 
 VENDOR_NAME_OBJECT_CODE = 0x00
@@ -30,16 +36,21 @@ USER_APPLICATION_NAME_OBJECT_CODE = 0x06
 NUMBER_OF_RELAYS_OBJECT_CODE = 0x80
 
 
+@modbus_poller(interval=0.5)
 class InfoWidget(HorizontalGroup):
     def __init__(self, agent: ModbusAgent, device_address: int):
-        super().__init__()
+        HorizontalGroup.__init__(self)
         self.agent = agent
         self.device_address = device_address
 
     def compose(self):
         with Vertical():
             yield DataTable(show_header=False, show_cursor=False)
-            yield Button("Identify")
+            yield Horizontal(
+                Static("Locate: "),
+                Switch(id="locate-switch"),
+                id="locate-container"
+            )
 
         yield StaticStatusList([
             "Relay fault",
@@ -72,18 +83,13 @@ class InfoWidget(HorizontalGroup):
         selection.border_title = "Faults"
         selection.bin_status = 0
 
-        self.run_worker(self.collect_info_worker(), name=f"query-info")
-
-    async def collect_info_worker(self):
-        # Start a worker to get the static data
+        # Request static device information (Requesting is instantaneous)
         self.agent.request(
-            ReadDeviceInformation(self.device_address, self.on_reply, read_code=0x03)
+            ReadDeviceInformation(self.device_address, self.on_device_information, read_code=0x03)
         )
 
-    def on_reply(self, pdu: ReadDeviceInformationResponse):
+    def on_device_information(self, pdu: ReadDeviceInformationResponse):
         """ Callback from ReadDeviceInformation """
-        from textual.coordinate import Coordinate
-
         table = self.query_one(DataTable)
 
         # Extract values and their corresponding coordinates
@@ -99,3 +105,43 @@ class InfoWidget(HorizontalGroup):
         for obj_code, (row_idx, label) in info_map.items():
             value = pdu.information.get(obj_code, b"").decode('ascii').strip()
             table.update_cell_at(Coordinate(row_idx, 1), value)
+
+    def on_poll(self):
+        """ Override from RefreshableWidget to request dynamic data periodically """
+        try:
+            # Request the device health and running hours
+            self.agent.request(
+                StatusAndMonitoring.read(
+                    self.device_address,
+                    self.on_status_monitoring_reply,
+                    StatusAndMonitoring.DEVICE_HEALTH,
+                    StatusAndMonitoring.RUNNING_MINUTES
+                )
+            )
+        except Exception as e:
+            self.log(f"Error requesting data: {e}", level="error")
+
+    def on_status_monitoring_reply(self, pdu: dict[str, int]):
+        """ Callback from ReadHoldingRegisters for running time """
+        table = self.query_one(DataTable)
+        status_list = self.query_one(StaticStatusList)
+
+        running_minutes = pdu.get("running_minutes")
+        running_hours_str = str(running_minutes // 60)
+        running_minutes_str = str(running_minutes % 60)
+
+        table.update_cell_at(Coordinate(6, 1), f"{running_hours_str}'{running_minutes_str}")
+
+        status_list.bin_status = pdu.get("device_health")
+
+    def on_switch_changed(self, event: Switch.Changed):
+        """ Called when the locate switch is toggled """
+        if event.switch.id == "locate-switch":
+            # Turn on locate (write 1 to register 0x20)
+            self.agent.request(
+                DeviceControl.write_single(
+                    self.device_address,
+                    DeviceControl.LOCATE,
+                    event.value
+                )
+            )

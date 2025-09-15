@@ -93,6 +93,10 @@ class RTUGuardian(App):
         pymodbus_logger.setLevel(logging.DEBUG)
         pymodbus_logger.addHandler(handler)
 
+        device_logger = logging.getLogger("device")
+        device_logger.setLevel(logging.DEBUG)
+        device_logger.addHandler(handler)
+
         # If config is default (i.e., just created), prompt user to configure
         if not config.is_usable or config['check_comm']:
             await self.push_screen(ConfigDialog())

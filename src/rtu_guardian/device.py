@@ -1,6 +1,8 @@
 import asyncio
 import re
+import traceback
 from enum import Enum, auto
+from logging import Logger
 
 from textual.widgets import TabPane, Tab
 from textual.containers import Container
@@ -16,6 +18,9 @@ from .constants import (
     CSS_UNKNOWN_DEVICE,
     CSS_DISCONNECTED_DEVICE
 )
+
+logger = Logger("device")
+
 
 class DeviceState(Enum):
     QUERYING = auto()
@@ -234,14 +239,18 @@ class DeviceFactory:
     @staticmethod
     def _get_device_container(name) -> Container | None:
         """ Return the device container if known """
-        if name == "MBR-ES":
-            from rtu_guardian.devices.relay_es.relay_device import RelayDevice
-            return RelayDevice
-        elif name == "console":
-            from rtu_guardian.devices.console.console_device import ConsoleDevice
-            return ConsoleDevice
-        elif name == "pneumatic":
-            from rtu_guardian.devices.pneumatic.pneumatic_device import PneumaticDevice
-            return PneumaticDevice
+        try:
+            if name == "MBR-ES":
+                from rtu_guardian.devices.relay_es.relay_device import RelayDevice
+                return RelayDevice
+            elif name == "console":
+                from rtu_guardian.devices.console.console_device import ConsoleDevice
+                return ConsoleDevice
+            elif name == "pneumatic":
+                from rtu_guardian.devices.pneumatic.pneumatic_device import PneumaticDevice
+                return PneumaticDevice
+        except Exception as e:
+            logger.error(f"Error loading device module for {name}:\n {e}")
+            logger.error(traceback.format_exc())
 
         return None

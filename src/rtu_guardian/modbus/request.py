@@ -81,6 +81,16 @@ class ReadHoldingRegisters(Request):
             count=self.count
         )
 
+class ReadInputRegisters(Request):
+    ADD_ARGS = {'address': 0, 'count': 1}
+
+    async def on_execute(self, client: AsyncModbusSerialClient):
+        return await client.read_input_registers(
+            self.address,
+            device_id=self.device_id,
+            count=self.count
+        )
+
 class ReadCoils(Request):
     ADD_ARGS = {'address': 0, 'count': 1}
 
@@ -106,4 +116,74 @@ class ReadDeviceInformation(Request):
             device_id=self.device_id,
             read_code=self.read_code,
             object_id=self.object_id
+        )
+
+class WriteHoldingRegisters(Request):
+    """
+    Modbus Function Code 16
+    Write multiple holding registers.
+    """
+    ADD_ARGS = {'address': 0, 'values': []}
+
+    async def on_execute(self, client: AsyncModbusSerialClient):
+        return await client.write_holding_registers(
+            self.address,
+            device_id=self.device_id,
+            values=self.values
+        )
+
+class WriteSingleRegister(Request):
+    """
+    Modbus Function Code 6
+    Write a single holding register.
+    """
+    ADD_ARGS = {'address': 0, 'value': 0}
+
+    async def on_execute(self, client: AsyncModbusSerialClient):
+        return await client.write_register(
+            self.address,
+            self.value,
+            device_id=self.device_id
+        )
+
+class WriteSingleCoil(Request):
+    """
+    Modbus Function Code 5
+    Write a single coil (digital output).
+    """
+    ADD_ARGS = {'address': 0, 'value': False}
+
+    async def on_execute(self, client: AsyncModbusSerialClient):
+        return await client.write_coil(
+            self.address,
+            self.value,
+            device_id=self.device_id
+        )
+
+class WriteCoils(Request):
+    """
+    Modbus Function Code 15
+    Write multiple coils (digital outputs).
+    """
+    ADD_ARGS = {'address': 0, 'values': []}
+
+    async def on_execute(self, client: AsyncModbusSerialClient):
+        return await client.write_coils(
+            self.address,
+            self.values,
+            device_id=self.device_id
+        )
+
+class WriteMultipleRegisters(Request):
+    """
+    Modbus Function Code 16
+    Write multiple holding registers.
+    """
+    ADD_ARGS = {'address': 0, 'values': []}
+
+    async def on_execute(self, client: AsyncModbusSerialClient):
+        return await client.write_registers(
+            self.address,
+            self.values,
+            device_id=self.device_id
         )
