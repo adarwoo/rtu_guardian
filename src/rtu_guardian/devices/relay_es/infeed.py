@@ -7,7 +7,7 @@ from textual.coordinate import Coordinate
 from rtu_guardian.devices.relay_es.registers import InfeedType
 from rtu_guardian.modbus.agent import ModbusAgent
 
-from .registers import PowerInfeed, StatusAndMonitoring, DeviceControl
+from .registers import DEVICE_CONTROL_UNLOCK, PowerInfeed, StatusAndMonitoring, DeviceControl
 from rtu_guardian.ui.refreshable import modbus_poller
 
 
@@ -39,7 +39,7 @@ class InfeedWidget(VerticalGroup):
         self.border_title = f"Infeed"
 
         table = self.query_one(DataTable)
-        table.add_columns("label", "12345678")
+        table.add_columns("label", " "*16)
         table.zebra_stripes = True
 
         for row in ROWS:
@@ -48,12 +48,12 @@ class InfeedWidget(VerticalGroup):
                 row = row[1:]
                 styled_row = [
                     Text(row, justify="right", style="bold magenta"),
-                    Text("-            ", style="bold magenta")
+                    Text("-", style="bold magenta")
                 ]
             else:
                 styled_row = [
                     Text(row, justify="right"),
-                    Text("-            ")
+                    Text("-")
                 ]
 
             table.add_row(*styled_row)
@@ -113,8 +113,8 @@ class InfeedWidget(VerticalGroup):
             self.agent.request(
                 DeviceControl.write_single(
                     self.device_address,
-                    DeviceControl.RESET_MIN_MAX,
-                    0xAA55
+                    DeviceControl.ZERO_MEASUREMENTS,
+                    DEVICE_CONTROL_UNLOCK
                 )
             )
 

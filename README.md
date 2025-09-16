@@ -1,4 +1,4 @@
-This project is work in progress and just got started
+This project is work in progress and is now getting there...
 
 The RTU guardian is a PC/Linux/Mac application which allow configuring and troubleshooting Modbus RTU devices, with some devices being fully managed - in this case - all my Modbus devices.
 
@@ -18,3 +18,6 @@ It also uses pymodbus for the modbus RTU part.
 ## Build and installation
 
 The Poetry package manager is used for integrated development in Windows/Linux/Mac.
+
+## Screenshot
+

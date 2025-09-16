@@ -3,7 +3,11 @@ from textual.widgets import Static, Button, Label, Rule, DataTable, Switch
 from textual.containers import HorizontalGroup, Vertical, Grid, VerticalGroup, Horizontal
 from textual.reactive import reactive
 
+from pymodbus.pdu import ModbusPDU
+
 from rtu_guardian.modbus.agent import ModbusAgent
+from rtu_guardian.modbus.request import ReadCoils, WriteCoils
+from rtu_guardian.ui.refreshable import modbus_poller
 
 ROWS = [
     ("Status", "???"),
@@ -57,6 +61,7 @@ class RelayWidget(HorizontalGroup):
         table.add_rows(ROWS)
 
 
+@modbus_poller(interval=0.5)
 class RelaysWidget(VerticalGroup):
     relay_status = reactive(0b00000000)
 
@@ -81,8 +86,39 @@ class RelaysWidget(VerticalGroup):
                 yield Label("Actual status")
                 for i in range(3):
                     with Horizontal():
-                        yield Switch(value=self.relay_status & (1 << i) != 0, id=f"relay_{i+1}_switch")
+                        switch = Switch(value=self.relay_status & (1 << i) != 0, id=f"actual_relay_{i+1}_switch")
+                        switch.can_focus = False
+                        yield switch
                 yield Button("Set", id="relays-set-button")
 
     def on_mount(self):
         self.border_title = "Relays position"
+
+    def on_poll(self):
+        """ Request data from the device """
+        self.agent.request(
+            ReadCoils(self.device_address, self.on_read_coil, address=0, count=3)
+        )
+
+    def on_read_coil(self, pdu: ModbusPDU):
+        """ Process coil status """
+        for i in range(3):
+            switch = self.query_one(f"#actual_relay_{i+1}_switch", Switch)
+            switch.value = pdu.bits[i]
+
+    async def on_button_pressed(self, event: Button.Pressed):
+        if event.button.id == "relays-sync-button":
+            # Collect requested statuses from left switches
+            values = []
+
+            for i in range(3):
+                switch = self.query_one(f"#relay_{i+1}_switch", Switch)
+                values.append( bool(switch.value) )
+
+            # Send the requested status to the relays (example: write coils)
+            self.agent.request(
+                WriteCoils(self.device_address, address=0, values=values)
+            )
+
+            # Read back right after
+            self.on_poll()

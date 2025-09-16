@@ -52,9 +52,13 @@ InfeedWidget {
    width: auto;
    max-width: 64;
    margin: 1;
-   min-width: 90;
    border: round $primary;
    padding: 1;
+
+   HorizontalGroup {
+      width: 100%;
+      align-horizontal: center;
+   }
 }
 
 InfeedWidget Button {
