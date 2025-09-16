@@ -42,6 +42,11 @@ class EStopControlMode(Enum):
     RESETTABLE = 1
     TERMINAL = 2
 
+class RelayDiagnosticValues(Enum):
+    OK = 0
+    FAULTY = 1
+    DISABLED = 2
+
 # -----------------------------------------------------------------------------
 # Modbus Register mappings (decorator-based)
 # -----------------------------------------------------------------------------
@@ -86,17 +91,19 @@ class PowerInfeed:
 
 @modbus_holding_registers(readable=True, single_writable=True)
 class SafetyLogic:
-    ESTOP_CONTROL_MODE = 0x0012
-    RELAY_1_BEHAVIOR   = 0x0013
-    RELAY_2_BEHAVIOR   = 0x0014
-    RELAY_3_BEHAVIOR   = 0x0015
+    ESTOP_ON_UNDER_VOLTAGE = 0x0010
+    ESTOP_ON_OVER_VOLTAGE = 0x0011
+    ESTOP_ON_INCORRECT_VOLTAGE_TYPE = 0x0012
+    ESTOP_ON_COMM_LOST = 0x0013
+    INFEED_FAULT_RELAY_MASK = 0x0014
+    COMM_LOST_RELAY_MASK = 0x0015
 
 
 @modbus_holding_registers(readable=True, single_writable=True)
 class Relays:
-    RELAY_1_CONFIG = 0x0020
-    RELAY_2_CONFIG = 0x0021
-    RELAY_3_CONFIG = 0x0022
+    RELAY_1_CONFIG = 0x0018
+    RELAY_2_CONFIG = 0x0019
+    RELAY_3_CONFIG = 0x001A
 
 
 @modbus_holding_registers(single_writable=True)

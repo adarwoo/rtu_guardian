@@ -1,7 +1,6 @@
 from textual.widget import Text
 from textual.widgets import DataTable, Button
 from textual.containers import HorizontalGroup, VerticalGroup
-from textual.reactive import reactive
 from textual.coordinate import Coordinate
 
 from rtu_guardian.devices.relay_es.registers import InfeedType
