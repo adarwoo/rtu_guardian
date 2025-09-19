@@ -262,3 +262,51 @@ class DeviceFactory:
             logger.error(traceback.format_exc())
 
         return None
+
+class ModbusDevice:
+    def identify(self, scanner) -> bool:
+        """Return True if this device recognizes the scanner's state."""
+        raise NotImplementedError
+
+    def create_widget(self):
+        """Return a Textual widget specialized for this device."""
+        raise NotImplementedError
+
+# Each 'device' to provide an __init__.py which registers an identification method with the factory
+# The factory im
+from .widget import NRelay3Widget
+from devices.device_base import ModbusDevice
+
+class NRelay3Device(ModbusDevice):
+    def identify(self, scanner) -> bool:
+        # Use scanner state to determine if this is an NRelay3
+        return scanner.has_register(0x2B) and scanner.read_string(0x00) == "NRELAY3"
+
+    def create_widget(self):
+        return NRelay3Widget()
+
+def get_device():
+    return NRelay3Device()
+
+
+import importlib
+import pkgutil
+from devices.device_base import ModbusDevice
+
+class DeviceFactory:
+    def __init__(self):
+        self.device_classes = self._discover_devices()
+
+    def _discover_devices(self):
+        devices = []
+        for _, module_name, _ in pkgutil.iter_modules(['devices']):
+            module = importlib.import_module(f'devices.{module_name}')
+            if hasattr(module, 'get_device'):
+                devices.append(module.get_device())
+        return devices
+
+    def identify_device(self, scanner) -> ModbusDevice | None:
+        for device in self.device_classes:
+            if device.identify(scanner):
+                return device
+        return None
