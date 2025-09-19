@@ -99,6 +99,14 @@ class Device(TabPane):
             # Keep trying to identify
             self.run_worker(self.scanner.start(), name=f"identify-{self.device_address}")
 
+    def update_widget_state(self, connected: bool) -> None:
+        """ Call upon losing connection with a device """
+        for child in self.query("*"):  # Query all subwidgets
+            if hasattr(child, "disabled"):
+                child.disabled = not connected
+            if hasattr(child, "styles"):
+                child.styles.opacity = 1.0 if connected else 0.5
+    
     def render(self):
         # Simple textual status for now
         return self.status_text
