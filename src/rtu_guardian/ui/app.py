@@ -1,11 +1,13 @@
 import asyncio
 import logging
 
+from pathlib import Path
+
 from textual.widgets import Header, Footer, TabbedContent, Tab
 from textual.app import App
 from textual.reactive import reactive
 
-from rtu_guardian.device import Device
+from rtu_guardian.devices.device import Device
 from rtu_guardian.config import config
 
 from rtu_guardian.ui.config_dialog import ConfigDialog, ConfigDialogClosed
@@ -22,9 +24,25 @@ class TextualLogHandler(logging.Handler):
         # Send into Textual log panel
         self.app.log(f"[pymodbus] {msg}")
 
+def get_css_path():
+    """ Scan the devices subdirectory for all .tcss files and add them to CSS_PATH """
+    css_dir = Path(__file__).parent / "css"
+    css_path = [str(css_dir / "main.tcss")]
+
+    devices_dir = Path(__file__).parent.parent / "devices"
+    assert(devices_dir.exists())
+
+    for subdir in devices_dir.iterdir():
+        if subdir.is_dir():
+            for file in subdir.glob("*.tcss"):
+                css_path.append(str(file))
+
+    return css_path
+
 
 class RTUGuardian(App):
-    CSS_PATH = "css/main.tcss"
+    # Scan the devices subdirectory for all .tcss files and add them to CSS_PATH
+    CSS_PATH = get_css_path()
 
     # Bindings themselves are not reactive, but you can override the watch method
     # to update bindings dynamically. Here's how you can do it:

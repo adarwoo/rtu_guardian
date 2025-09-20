@@ -7,11 +7,11 @@ from textual.coordinate import Coordinate
 
 from pymodbus.pdu.mei_message import ReadDeviceInformationResponse
 
-from rtu_guardian.devices.relay_es.registers import DeviceControl, StatusAndMonitoring
+from rtu_guardian.devices.mb_nxes.registers import DeviceControl, StatusAndMonitoring
 from rtu_guardian.modbus.agent import ModbusAgent
 from rtu_guardian.modbus.request import ReadDeviceInformation
 
-from rtu_guardian.ui.refreshable import modbus_poller
+from rtu_guardian.devices.utils import modbus_poller
 
 from .static_status_list import StaticStatusList
 

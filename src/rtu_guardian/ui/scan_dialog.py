@@ -6,7 +6,7 @@ from textual.containers import Vertical, Horizontal
 from textual.reactive import reactive
 
 from rtu_guardian.ui.app import RTUGuardian
-from rtu_guardian.device import DeviceScanner, DeviceState
+from rtu_guardian.devices.device import DeviceScanner, DeviceState
 from rtu_guardian.modbus.agent import ModbusAgent
 
 from rtu_guardian.constants import RECOVERY_ID

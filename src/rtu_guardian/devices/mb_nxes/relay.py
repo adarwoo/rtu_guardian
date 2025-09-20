@@ -1,15 +1,14 @@
 from textual.widget import Text
-from textual.widgets import Button, Label, Rule, DataTable, Switch
-from textual.containers import HorizontalGroup, Vertical, VerticalGroup, Horizontal
-from textual.reactive import reactive
+from textual.widgets import Button, Label, DataTable, Switch, Rule
+from textual.containers import HorizontalGroup, Vertical, VerticalGroup, Horizontal, Grid
 from textual.coordinate import Coordinate
 
 from pymodbus.pdu import ModbusPDU
 
-from rtu_guardian.devices.relay_es.registers import RelayDiagnosticValues, RelayDiagnostics, Relays, SafetyLogic
+from rtu_guardian.devices.mb_nxes.registers import RelayDiagnosticValues, RelayDiagnostics, Relays, SafetyLogic
 from rtu_guardian.modbus.agent import ModbusAgent
 from rtu_guardian.modbus.request import ReadCoils, WriteCoils, WriteSingleCoil
-from rtu_guardian.ui.refreshable import modbus_poller
+from rtu_guardian.devices.utils import modbus_poller
 
 ROWS = [
     "State",
@@ -35,6 +34,20 @@ class RelayWidget(HorizontalGroup):
         self.agent = agent
         self.device_address = device_address
         self.relay_id = relay_id
+
+
+    def compose(self):
+        # Left: Open/Close buttons (vertical)
+        with Vertical(id="relay-actions"):
+            yield Button("Open", id=f"open_{self.relay_id}")
+            yield Button("Close", id=f"close_{self.relay_id}")
+
+        # Add a grid with all infos
+        with Vertical(id="relay-info"):
+            with Horizontal(classes="centered", id="relay-config-row"):
+                yield DataTable(show_header=False, show_cursor=False)
+            with Horizontal(classes="centered"):
+                yield Button("Configure", id=f"config_{self.relay_id}")
 
     def on_poll(self):
         """ Request data from the device """
@@ -71,19 +84,6 @@ class RelayWidget(HorizontalGroup):
 
         table.update_cell_at(Coordinate(1, 1), diag)
         table.update_cell_at(Coordinate(2, 1), str(cycles))
-
-    def compose(self):
-        # Left: Open/Close buttons (vertical)
-        with Vertical(id="relay-actions"):
-            yield Button("Open", id=f"open_{self.relay_id}")
-            yield Button("Close", id=f"close_{self.relay_id}")
-
-        # Add a grid with all infos
-        with Vertical(id="relay-info"):
-            with Horizontal(classes="centered", id="relay-config-row"):
-                yield DataTable(show_header=False, show_cursor=False)
-            with Horizontal(classes="centered"):
-                yield Button("Configure", id=f"config_{self.relay_id}")
 
     def on_mount(self):
         self.border_title = f"Relay {self.relay_id}"
@@ -163,25 +163,32 @@ class RelaysWidget(VerticalGroup):
         self.device_address = device_address
 
     def compose(self):
-        with HorizontalGroup(id="relays-header"):
-            with VerticalGroup(id="relays-requested-statuses"):
-                yield Label("[b]Requested status", id="requested-status-label")
+        with Horizontal():
+            with Vertical(id="relays-labels"):
                 for i in range(3):
-                    with Horizontal():
-                        yield Label(f"Relay {i+1}")
-                        yield Switch(value=False, id=f"relay_{i+1}_switch")
-                yield Button("Sync", id="relays-sync-button")
+                    yield Label(f"Relay {i+1}")
 
-            yield Rule(orientation="vertical", line_style="heavy", id="relays-vrule")
-
-            with VerticalGroup(id="relays-actual-statuses"):
-                yield Label("Actual status")
+            with Vertical():
+                yield Label("[b]Set")
                 for i in range(3):
-                    with Horizontal():
-                        switch = Switch(0, id=f"actual_relay_{i+1}_switch")
-                        switch.can_focus = False
-                        yield switch
-                yield Button("Set", id="relays-set-button")
+                    yield Switch(value=False, id=f"relay_{i+1}_switch")
+
+                yield Button("Set", id="relay-lr-button")
+
+            yield Rule()
+
+            with Vertical():
+                yield Label("[b]Sync")
+                for i in range(3):
+                    switch = Switch(0, id=f"actual_relay_{i+1}_switch")
+                    switch.can_focus = False
+                    yield switch
+
+                yield Button("Set", id="relay-lr-button")
+
+            with Horizontal(id="relays-actions"):
+                yield Button("Set all", id="relays-set-button")
+                yield Button("Clear all", id="relays-clear-button")
 
     def on_mount(self):
         self.border_title = "Relays position"

@@ -47,22 +47,26 @@ class RelayDiagnosticValues(Enum):
     FAULTY = 1
     DISABLED = 2
 
+class DeviceStatus(Enum):
+    OPERATIONAL = 0
+    ESTOP = 1
+    TERMINAL = 2
+
 # -----------------------------------------------------------------------------
 # Modbus Register mappings (decorator-based)
 # -----------------------------------------------------------------------------
 @modbus_input_registers()
 class StatusAndMonitoring:
-    DEVICE_HEALTH    = 0x000F
-    DIAGNOSTIC_CODE  = 0x0010
-    ESTOP_CAUSE      = 0x000F
-    INFEED_HIGHEST   = 0x000E
-    INFEED_LOWEST    = 0x000D
+    STATUS           = 0x0008
+    RUNNING_MINUTES  = [0x0009, 0x000A]
     INFEED_TYPE      = 0x000B
     INFEED_VOLTAGE   = 0x000C
-    RESERVED_START   = 0x0011
-    RUNNING_MINUTES  = [0x0009, 0x000A]
-    STATUS           = 0x0008
-
+    INFEED_LOWEST    = 0x000D
+    DEVICE_HEALTH    = 0x000F
+    INFEED_HIGHEST   = 0x000E
+    DEVICE_HEALTH    = 0x000F
+    ESTOP_CAUSE      = 0x0010
+    DIAGNOSTIC_CODE  = 0x0011
 
 @modbus_input_registers()
 class RelayDiagnostics:
