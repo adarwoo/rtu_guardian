@@ -159,14 +159,57 @@ EStopWidget {
 
 RelaysWidget {
    width: 64;
+   height: 22;
    margin: 1;
    border: round $primary;
-   padding: 1;
 
-   Horizontal {
+   #relay-individuals {
+      padding: 0;
+      height: 16;
       width: 100%;
-      align: center middle;
-      margin-top: 1;
+   }
+
+   #relays-labels {
+      align-horizontal: right;
+      width: 20%;
+      margin: 3 0 0 0;
+   }
+
+   #relays-set {
+      width: 30%;
+      align: right top;
+
+      Label {
+         height: 3;
+         margin-left: 13
+      }
+
+      Switch {
+         margin-left: 8;
+         height: 3;
+      }
+   }
+
+   #relays-sync {
+      width: 30%;
+      height: auto;
+      align: right top;
+   }
+
+   .centered-button {
+      width: 8;
+      padding: 0 0;
+      margin: 1 1 1 1;
+   }
+
+   #relays-actions {
+      align: center top;
+      width: 100%;
+
+      Button {
+         width: 12;
+         margin: 1 10;
+      }
    }
 
    #relays-header {
@@ -196,5 +239,41 @@ RelaysWidget {
    Button {
       margin-top: 1;
       width: 100%;
+   }
+}
+
+RelayConfigDialog {
+   #dialog {
+      background: $panel;
+      border: round $primary;
+      align: center middle;
+      padding: 1 1;
+      width: 60;
+      min-height: 16;
+      height: 40%;
+      height: 20;
+   }
+
+   #title {
+      text-align: center;
+      margin-bottom: 1;
+   }
+
+   .field_label {
+      padding: 1 1;
+      width: 20;
+   }
+
+   .filter_input {
+      width: 16;
+   }
+
+   #dialog-buttons {
+      align: center middle;
+      width: 100%;
+
+      Button {
+         margin: 1 8;
+      }
    }
 }

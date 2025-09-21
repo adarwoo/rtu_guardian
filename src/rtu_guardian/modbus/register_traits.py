@@ -134,10 +134,13 @@ def modbus_holding_registers(
 
         if single_writable:
             @classmethod
-            def write_single(cls, device_id: int, register_address: int, value: int, **kwargs):
+            def write_single(cls, device_id: int, register_address: int|str, value: int, **kwargs):
                 if not (0 <= value <= 0xFFFF):
                     raise ValueError("Value must be between 0 and 65535 (0xFFFF)")
-                ref = cls.by_address(register_address)
+                if isinstance(register_address, str):
+                    ref = cls.by_name(register_address)
+                else:
+                    ref = cls.by_address(register_address)
                 kwargs["address"] = ref.address
                 kwargs["value"] = value
                 return WriteSingleRegister(device_id, **kwargs)

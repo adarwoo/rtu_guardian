@@ -5,7 +5,8 @@ from rtu_guardian.modbus.agent import ModbusAgent
 
 from .infeed import InfeedWidget
 from .info import InfoWidget
-from .relay import RelayWidget, RelaysWidget
+from .single_relay import RelayWidget
+from .all_relays import RelaysWidget
 from .estop import EStopWidget
 
 

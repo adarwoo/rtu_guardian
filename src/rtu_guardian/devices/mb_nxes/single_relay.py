@@ -1,26 +1,29 @@
+from textual import on
 from textual.widget import Text
-from textual.widgets import Button, Label, DataTable, Switch, Rule
-from textual.containers import HorizontalGroup, Vertical, VerticalGroup, Horizontal, Grid
+from textual.widgets import Button, DataTable
+from textual.containers import HorizontalGroup, Vertical, Horizontal
 from textual.coordinate import Coordinate
 
 from pymodbus.pdu import ModbusPDU
 
-from rtu_guardian.devices.mb_nxes.registers import RelayDiagnosticValues, RelayDiagnostics, Relays, SafetyLogic
 from rtu_guardian.modbus.agent import ModbusAgent
-from rtu_guardian.modbus.request import ReadCoils, WriteCoils, WriteSingleCoil
+from rtu_guardian.modbus.request import ReadCoils, WriteSingleCoil
 from rtu_guardian.devices.utils import modbus_poller
+
+from .registers import RelayDiagnosticValues, RelayDiagnostics, Relays, SafetyLogic
+from .relay_config import RelayConfigDialog
 
 ROWS = [
     "State",
     "Status",
     "Cycles",
-    "Filter ON",
-    "Filter OFF",
+    "Closed Minimum Duration",
+    "Opened Minimum Duration",
     "Open on infeed fault",
     "Open on comm lost"
 ]
 
-@modbus_poller(interval=4.2)
+@modbus_poller(interval=0.2)
 class RelayWidget(HorizontalGroup):
     CSS_PATH = "relay.tcss"
 
@@ -34,7 +37,9 @@ class RelayWidget(HorizontalGroup):
         self.agent = agent
         self.device_address = device_address
         self.relay_id = relay_id
-
+        self.closed_filter = 0.0
+        self.opened_filter = 0.0
+        self.disabled = False
 
     def compose(self):
         # Left: Open/Close buttons (vertical)
@@ -116,16 +121,16 @@ class RelayWidget(HorizontalGroup):
         raw = pdu[f"relay_{self.relay_id}_config"]
 
         if raw == 0xFFFF:
-            disabled = True
-            min_on = 0
-            min_off = 0
+            self.disabled = True
+            self.closed_filter = 0
+            self.opened_filter = 0
         else:
-            disabled = False
-            min_on = (raw >> 8) & 0xFF
-            min_off = raw & 0xFF
+            self.disabled = False
+            self.closed_filter = ((raw >> 8) & 0xFF) / 10.0
+            self.opened_filter = (raw & 0xFF) / 10.0
 
-        table.update_cell_at(Coordinate(3, 1), f"{min_on}.0s")
-        table.update_cell_at(Coordinate(4, 1), f"{min_off}.0s")
+        table.update_cell_at(Coordinate(3, 1), f"{self.closed_filter}s")
+        table.update_cell_at(Coordinate(4, 1), f"{self.opened_filter}s")
 
     def on_read_safety_logic(self, pdu: dict[str, int]):
         table = self.query_one(DataTable)
@@ -152,72 +157,33 @@ class RelayWidget(HorizontalGroup):
                 WriteSingleCoil(self.device_address, address=self.relay_id - 1, value=True)
             )
             self.on_poll()
+        elif event.button.id == f"config_{self.relay_id}":
+            from rtu_guardian.devices.mb_nxes.relay_config import RelayConfigDialog
 
-
-
-@modbus_poller(interval=0.5)
-class RelaysWidget(VerticalGroup):
-    def __init__(self, agent: ModbusAgent, device_address: int):
-        super().__init__()
-        self.agent = agent
-        self.device_address = device_address
-
-    def compose(self):
-        with Horizontal():
-            with Vertical(id="relays-labels"):
-                for i in range(3):
-                    yield Label(f"Relay {i+1}")
-
-            with Vertical():
-                yield Label("[b]Set")
-                for i in range(3):
-                    yield Switch(value=False, id=f"relay_{i+1}_switch")
-
-                yield Button("Set", id="relay-lr-button")
-
-            yield Rule()
-
-            with Vertical():
-                yield Label("[b]Sync")
-                for i in range(3):
-                    switch = Switch(0, id=f"actual_relay_{i+1}_switch")
-                    switch.can_focus = False
-                    yield switch
-
-                yield Button("Set", id="relay-lr-button")
-
-            with Horizontal(id="relays-actions"):
-                yield Button("Set all", id="relays-set-button")
-                yield Button("Clear all", id="relays-clear-button")
-
-    def on_mount(self):
-        self.border_title = "Relays position"
-
-    def on_poll(self):
-        """ Request data from the device """
-        self.agent.request(
-            ReadCoils(self.device_address, self.on_read_coil, address=0, count=3)
-        )
-
-    def on_read_coil(self, pdu: ModbusPDU):
-        """ Process coil status """
-        for i in range(3):
-            switch = self.query_one(f"#actual_relay_{i+1}_switch", Switch)
-            switch.value = pdu.bits[i]
-
-    async def on_button_pressed(self, event: Button.Pressed):
-        if event.button.id == "relays-sync-button":
-            # Collect requested statuses from left switches
-            values = []
-
-            for i in range(3):
-                switch = self.query_one(f"#relay_{i+1}_switch", Switch)
-                values.append( bool(switch.value) )
-
-            # Send the requested status to the relays (example: write coils)
-            self.agent.request(
-                WriteCoils(self.device_address, address=0, values=values)
+            dialog = RelayConfigDialog(
+                self.relay_id, self.closed_filter, self.opened_filter, self.disabled
             )
 
-            # Read back right after
-            self.on_poll()
+            result = await self.app.push_screen_wait(dialog)
+
+            if result:
+                if result["disabled"]:
+                    value = 0xFFFF
+                else:
+                    closed_int = int(float(result["closed_filter"]) * 10.0)
+                    opened_int = int(float(result["opened_filter"]) * 10.0)
+
+                    value = (closed_int << 8) | opened_int
+
+                    # Write the new configuration
+                    self.agent.request(
+                        Relays.write_single(
+                            self.device_address,
+                            f"relay_{self.relay_id}_config",
+                            value
+                        )
+                    )
+
+                self.on_show()  # Refresh display
+
+

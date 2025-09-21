@@ -127,7 +127,6 @@ class ScanDialog(ModalScreen):
         for address in self.active_addresses.keys():
             self.scan_results[address] = ScanState.PRESUMED
 
-
     def compose(self):
         with Horizontal(id="scan-dialog"):
             yield Label(LEGEND, id="scan-legend")
@@ -163,12 +162,12 @@ class ScanDialog(ModalScreen):
         self.scanner = DeviceScanner(
             modbus_agent,
             self.scanning_address,
-            self.update_scan_result
+            self
         )
 
         await self.scanner.start()
 
-    def update_scan_result(
+    def on_update_status(
         self, state: DeviceState,
         status_text: str,
         is_final: bool
