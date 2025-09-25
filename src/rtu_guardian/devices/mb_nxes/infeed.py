@@ -3,12 +3,13 @@ from textual.widgets import DataTable, Button
 from textual.containers import HorizontalGroup, VerticalGroup
 from textual.coordinate import Coordinate
 
-from rtu_guardian.devices.mb_nxes.registers import InfeedType
 from rtu_guardian.modbus.agent import ModbusAgent
-
-from .registers import DEVICE_CONTROL_UNLOCK, PowerInfeed, StatusAndMonitoring, DeviceControl
 from rtu_guardian.devices.utils import modbus_poller
 
+from .registers import (
+    DEVICE_CONTROL_UNLOCK,
+    InfeedType, PowerInfeed, StatusAndMonitoring, DeviceControl
+)
 
 ROWS = [
     "Expected type",
