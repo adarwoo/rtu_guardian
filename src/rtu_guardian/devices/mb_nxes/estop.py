@@ -6,7 +6,18 @@ from textual.coordinate import Coordinate
 from rtu_guardian.modbus.agent import ModbusAgent
 from rtu_guardian.devices.utils import modbus_poller
 
-from .registers import SafetyLogic, StatusAndMonitoring, DeviceStatus
+from .registers import (
+    DEVICE_CONTROL_ESTOP,
+    DEVICE_CONTROL_PULSE,
+    DEVICE_CONTROL_RESET,
+    DEVICE_CONTROL_TERMINAL,
+    DEVICE_CONTROL_UNLOCK,
+    SafetyLogic,
+    StatusAndMonitoring,
+    DeviceStatus,
+    DeviceControl
+)
+
 from .static_status_list import StaticStatusList
 
 
@@ -143,3 +154,75 @@ class EStopWidget(VerticalGroup):
             "[red]Yes" if pdu["estop_on_incorrect_voltage_type"] else "No")
         table.update_cell_at(Coordinate(5, 1),
             "[red]Yes" if pdu["estop_on_comm_lost"] else "No")
+
+    async def on_button_pressed(self, event):
+        button_id = event.button.id
+
+        if button_id in (
+            "estop-clear-button",
+            "estop-pulse-button",
+            "estop-set-button",
+            "estop-terminal-button"
+        ):
+            code = 0
+
+            try:
+                code = int(self.query_one("#ext_diag_code", Input).value or 0)
+            except ValueError:
+                code = 0
+
+            if button_id == "estop-pulse-button":
+                value = DEVICE_CONTROL_PULSE | (code & 0xFF)
+            elif button_id == "estop-set-button":
+                value = DEVICE_CONTROL_ESTOP | (code & 0xFF)
+            elif button_id == "estop-terminal-button":
+                value = DEVICE_CONTROL_TERMINAL | (code & 0xFF)
+            else:  # Clear button
+                value = DEVICE_CONTROL_RESET
+
+            self.agent.request(
+                DeviceControl.write_single(
+                    self.device_address,
+                    DeviceControl.SET_RESET_ESTOP,
+                    value
+                )
+            )
+
+    def on_input_changed(self, event):
+        input_widget = event.input
+        value = input_widget.value.strip()
+        valid = False
+        error = False
+
+        if value == "":
+            valid = True
+            code = 0
+        else:
+            try:
+                # Support hex notation (e.g., 0x1A)
+                code = int(value, 0)
+                if 0 <= code <= 255:
+                    valid = True
+                else:
+                    error = True
+            except ValueError:
+                error = True
+
+        # Enable/disable buttons based on validity
+        for btn_id in ("estop-pulse-button", "estop-set-button", "estop-terminal-button"):
+            btn = self.query_one(f"#{btn_id}", Button)
+            btn.disabled = not valid
+
+        # Optionally, flag the input if invalid
+        if error:
+            input_widget.styles.color = "red"
+        else:
+            input_widget.styles.color = "green"
+
+    def on_mount(self):
+        # Set default value to 0
+        input_widget = self.query_one("#ext_diag_code", Input)
+        input_widget.value = "0"
+        input_widget.tooltip = "Enter an integer 0-255 (decimal or hex)"
+        # Trigger validation to set button states
+        self.on_input_changed(type("Event", (), {"input": input_widget})())

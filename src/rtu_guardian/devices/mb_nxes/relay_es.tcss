@@ -112,7 +112,7 @@ EStopWidget {
    padding: 0;
 
    #top-section {
-      width: 100%;
+      width: 90%;
 
       StaticStatusList {
          border: round $primary;
@@ -123,11 +123,8 @@ EStopWidget {
       }
 
       #estop-clear-button {
-         margin-left: 9;
-      }
-
-      DataTable {
-         margin: 1 1;
+         margin-left: 12;
+         margin-top: 4;
       }
    }
 

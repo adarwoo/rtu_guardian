@@ -58,9 +58,15 @@ class RelayConfigDialog(ModalScreen):
             opened_val = self.query_one("#opened_filter", Input).value
             disabled = self.query_one("#disable_relay", Checkbox).value
 
-            self.dismiss({"disabled": disabled, "closed_filter": closed_val, "opened_filter": opened_val})
-
-        self.dismiss(None)
+            # Dismiss with a result payload when OK is pressed
+            self.dismiss({
+                "disabled": disabled,
+                "closed_filter": closed_val,
+                "opened_filter": opened_val,
+            })
+        else:
+            # Cancel or other buttons dismiss with None
+            self.dismiss(None)
 
     def on_mount(self) -> None:
         self.query_one("#dialog").border_title = f"Configuration for relay {self.relay_id}"

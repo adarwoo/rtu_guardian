@@ -3,6 +3,7 @@ from textual.widget import Text
 from textual.widgets import Button, DataTable
 from textual.containers import HorizontalGroup, Vertical, Horizontal
 from textual.coordinate import Coordinate
+from textual.reactive import reactive
 
 from pymodbus.pdu import ModbusPDU
 
@@ -27,6 +28,10 @@ ROWS = [
 class RelayWidget(HorizontalGroup):
     CSS_PATH = "relay.tcss"
 
+    closed_filter = reactive(0.0)
+    opened_filter = reactive(0.0)
+    disabled = reactive(False)
+
     def __init__(
         self,
         agent: ModbusAgent,
@@ -44,8 +49,8 @@ class RelayWidget(HorizontalGroup):
     def compose(self):
         # Left: Open/Close buttons (vertical)
         with Vertical(id="relay-actions"):
-            yield Button("Open", id=f"open_{self.relay_id}")
-            yield Button("Close", id=f"close_{self.relay_id}")
+            yield Button("Open", id=f"open_{self.relay_id}", variant="success")
+            yield Button("Close", id=f"close_{self.relay_id}", variant="error")
 
         # Add a grid with all infos
         with Vertical(id="relay-info"):
@@ -169,13 +174,22 @@ class RelayWidget(HorizontalGroup):
             if result:
                 if result["disabled"]:
                     value = 0xFFFF
+                    # Update reactive state immediately
+                    self.disabled = True
+                    self.closed_filter = 0.0
+                    self.opened_filter = 0.0
                 else:
                     closed_int = int(float(result["closed_filter"]) * 10.0)
                     opened_int = int(float(result["opened_filter"]) * 10.0)
 
                     value = (closed_int << 8) | opened_int
 
-                    # Write the new configuration
+                    # Update reactive state immediately
+                    self.disabled = False
+                    self.closed_filter = closed_int / 10.0
+                    self.opened_filter = opened_int / 10.0
+
+                    # Write the new configuration (both enabled and disabled cases)
                     self.agent.request(
                         Relays.write_single(
                             self.device_address,
@@ -184,6 +198,31 @@ class RelayWidget(HorizontalGroup):
                         )
                     )
 
-                self.on_show()  # Refresh display
+    def watch_closed_filter(self, value: float) -> None:
+        """Update UI when closed_filter changes."""
+        try:
+            table = self.query_one(DataTable)
+            table.update_cell_at(Coordinate(3, 1), f"{value}s")
+        except Exception:
+            pass
+
+    def watch_opened_filter(self, value: float) -> None:
+        """Update UI when opened_filter changes."""
+        try:
+            table = self.query_one(DataTable)
+            table.update_cell_at(Coordinate(4, 1), f"{value}s")
+        except Exception:
+            pass
+
+    def watch_disabled(self, value: bool) -> None:
+        """Update UI when disabled changes (also reflect filters to 0 if disabled)."""
+        try:
+            table = self.query_one(DataTable)
+            # You may also want to style row labels when disabled; here we just ensure filters shown
+            if value:
+                table.update_cell_at(Coordinate(3, 1), "0s")
+                table.update_cell_at(Coordinate(4, 1), "0s")
+        except Exception:
+            pass
 
 
