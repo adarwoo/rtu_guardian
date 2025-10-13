@@ -1,7 +1,6 @@
 from textual.screen import ModalScreen
 from textual.app import ComposeResult
 from textual.containers import Horizontal, Vertical
-from textual.message import Message
 
 from textual.widgets import (
     Input,

@@ -11,7 +11,16 @@ from .registers import (
     DEVICE_CONTROL_PULSE,
     DEVICE_CONTROL_RESET,
     DEVICE_CONTROL_TERMINAL,
-    DEVICE_CONTROL_UNLOCK,
+    DEVICE_ESTOP_CAUSE_RELAY_FAULT,
+    DEVICE_ESTOP_CAUSE_MODBUS_COMMLOSS,
+    DEVICE_ESTOP_CAUSE_INFEED_POLARITY_INVERSION,
+    DEVICE_ESTOP_CAUSE_UNEXPECTED_VOLTAGE_TYPE,
+    DEVICE_ESTOP_CAUSE_UNDERVOLTAGE,
+    DEVICE_ESTOP_CAUSE_OVERVOLTAGE,
+    DEVICE_ESTOP_CAUSE_COMMAND,
+    DEVICE_ESTOP_CAUSE_APPLICATION_CRASH,
+    DEVICE_ESTOP_CAUSE_EEPROM_CORRUPTED,
+    DEVICE_ESTOP_CAUSE_SUPPLY_FAILURE,
     SafetyLogic,
     StatusAndMonitoring,
     DeviceStatus,
@@ -69,9 +78,10 @@ class EStopWidget(VerticalGroup):
             yield Button("Terminal", id="estop-terminal-button")
 
     def on_mount(self):
-        self.border_title = f"EStop"
+        self.border_title = "EStop"
+
         table = self.query_one(DataTable)
-        table.add_columns("label", " "*16)
+        table.add_columns("label", "value..............")
         table.zebra_stripes = True
 
         for row in ROWS:
@@ -89,6 +99,13 @@ class EStopWidget(VerticalGroup):
                 ]
 
             table.add_row(*styled_row)
+
+        # Set default value to 0
+        input_widget = self.query_one("#ext_diag_code", Input)
+        input_widget.value = "0"
+        input_widget.tooltip = "Enter an integer 0-255 (decimal or hex)"
+        # Trigger validation to set button states
+        self.on_input_changed(type("Event", (), {"input": input_widget})())
 
         # Hide the StaticStatusLists until we have data
         self.query_one(StaticStatusList).visible = False
@@ -142,6 +159,9 @@ class EStopWidget(VerticalGroup):
                 self.border_title = f"[red]Terminal cause"
             else:
                 self.border_title = f"Uncleared Cause"
+
+            # Update the status list
+            status_list.bin_status = cause
 
     def on_read_safety_logic(self, pdu: dict[str, int]):
         table = self.query_one(DataTable)
@@ -219,10 +239,3 @@ class EStopWidget(VerticalGroup):
         else:
             input_widget.styles.color = "green"
 
-    def on_mount(self):
-        # Set default value to 0
-        input_widget = self.query_one("#ext_diag_code", Input)
-        input_widget.value = "0"
-        input_widget.tooltip = "Enter an integer 0-255 (decimal or hex)"
-        # Trigger validation to set button states
-        self.on_input_changed(type("Event", (), {"input": input_widget})())

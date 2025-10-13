@@ -24,7 +24,7 @@ ROWS = [
     "Open on comm lost"
 ]
 
-@modbus_poller(interval=0.2)
+@modbus_poller(interval=2)
 class RelayWidget(HorizontalGroup):
     CSS_PATH = "relay.tcss"
 
