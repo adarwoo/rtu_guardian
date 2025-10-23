@@ -12,39 +12,60 @@ from textual.widgets import (
 
 class RelayConfigDialog(ModalScreen):
     """A dialog box for configuring a Modbus relay."""
-    def __init__(self, relay_id: int, closed_filter: float = 0.0, opened_filter: float = 0.0, disabled: bool = False):
+    def __init__(
+        self, relay_id: int,
+        closed_filter: float = 0.0,
+        opened_filter: float = 0.0,
+        disabled: bool = False,
+        open_on_infeed_fault: bool = False,
+        open_on_comm_lost: bool = False) -> None:
         super().__init__()
         self.relay_id = relay_id
         self.closed_filter = closed_filter
         self.opened_filter = opened_filter
         self.disabled = disabled
+        self.open_on_infeed_fault = open_on_infeed_fault
+        self.open_on_comm_lost = open_on_comm_lost
         self._valid_on: bool = False
         self._valid_off: bool = False
 
     def compose(self) -> ComposeResult:
         with Vertical(id="dialog", classes="box"):
-            # Closed filter
-            with Horizontal():
-                yield Label("Closed Filter (s):", classes="field_label")
-                yield Input(
-                    placeholder="0.0 - 25.3",
-                    id="closed_filter",
-                    classes="filter_input"
-                )
+            with Horizontal(id="top-section"):
+                with Vertical(id="filter-section"):
+                    # Closed filter
+                    with Horizontal():
+                        yield Label("Closed Filter (s):", classes="field_label")
+                        yield Input(
+                            placeholder="0.0 - 25.3",
+                            id="closed_filter",
+                            classes="filter_input"
+                        )
 
-            # Opened filter
-            with Horizontal():
-                yield Label("Opened Filter (s):", classes="field_label")
-                yield Input(
-                    placeholder="0.0 - 25.3",
-                    id="opened_filter",
-                    classes="filter_input"
-                )
+                    # Opened filter
+                    with Horizontal():
+                        yield Label("Opened Filter (s):", classes="field_label")
+                        yield Input(
+                            placeholder="0.0 - 25.3",
+                            id="opened_filter",
+                            classes="filter_input"
+                        )
 
-            # Disable relay
-            with Horizontal():
-                yield Label("Disable Relay:", classes="field_label")
-                yield Checkbox(id="disable_relay")
+                    # Disable relay
+                    with Horizontal():
+                        yield Label("Disable Relay", classes="field_label")
+                        yield Checkbox(id="disable_relay")
+
+                with Vertical(id="open-on-section"):
+                    # Disable relay
+                    with Horizontal():
+                        yield Label("Open on infeed fault", classes="field_label")
+                        yield Checkbox(id="open_on_infeed_fault")
+
+                    # Disable relay
+                    with Horizontal():
+                        yield Label("Open on comm lost", classes="field_label")
+                        yield Checkbox(id="open_on_comm_lost")
 
             # Action buttons
             with Horizontal(id="dialog-buttons"):
@@ -56,12 +77,16 @@ class RelayConfigDialog(ModalScreen):
             closed_val = self.query_one("#closed_filter", Input).value
             opened_val = self.query_one("#opened_filter", Input).value
             disabled = self.query_one("#disable_relay", Checkbox).value
+            open_on_infeed_fault = self.query_one("#open_on_infeed_fault", Checkbox).value
+            open_on_comm_lost = self.query_one("#open_on_comm_lost", Checkbox).value
 
             # Dismiss with a result payload when OK is pressed
             self.dismiss({
                 "disabled": disabled,
                 "closed_filter": closed_val,
                 "opened_filter": opened_val,
+                "open_on_infeed_fault": open_on_infeed_fault,
+                "open_on_comm_lost": open_on_comm_lost
             })
         else:
             # Cancel or other buttons dismiss with None
@@ -73,6 +98,8 @@ class RelayConfigDialog(ModalScreen):
         self.query_one("#closed_filter", Input).value = str(self.closed_filter)
         self.query_one("#opened_filter", Input).value = str(self.opened_filter)
         self.query_one("#disable_relay", Checkbox).value = self.disabled
+        self.query_one("#open_on_infeed_fault", Checkbox).value = self.open_on_infeed_fault
+        self.query_one("#open_on_comm_lost", Checkbox).value = self.open_on_comm_lost
         # Validate initial values and set OK state accordingly
         self._validate_all()
         self._apply_disable_state(self.disabled)

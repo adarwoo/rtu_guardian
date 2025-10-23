@@ -16,6 +16,7 @@ from textual.widgets import (
 
 from rtu_guardian.modbus.agent import ModbusAgent
 from rtu_guardian.devices.utils import modbus_poller
+import traceback
 
 from .registers import (
     DEVICE_CONTROL_UNLOCK,
@@ -83,10 +84,10 @@ class InfeedWidget(VerticalGroup):
         self.agent.request(StatusAndMonitoring.read(
             self.device_address,
             self.on_read_status_and_monitoring,
-            StatusAndMonitoring.INFEED_HIGHEST,
-            StatusAndMonitoring.INFEED_LOWEST,
             StatusAndMonitoring.INFEED_TYPE,
             StatusAndMonitoring.INFEED_VOLTAGE,
+            StatusAndMonitoring.INFEED_LOWEST,
+            StatusAndMonitoring.INFEED_HIGHEST,
         ))
 
     def on_read_power_infeed(self, pdu: dict[str, int]):
@@ -108,8 +109,8 @@ class InfeedWidget(VerticalGroup):
             table.update_cell_at(Coordinate(2, 1), "---")
             table.update_cell_at(Coordinate(4, 1), "---")
         else:
-            table.update_cell_at(Coordinate(2, 1), f"{self.high_threshold}")
-            table.update_cell_at(Coordinate(4, 1), f"{self.low_threshold}")
+            table.update_cell_at(Coordinate(2, 1), f"{self.low_threshold}")
+            table.update_cell_at(Coordinate(4, 1), f"{self.high_threshold}")
 
     def on_read_status_and_monitoring(self, pdu: dict[str, int]):
         """ Process input registers """
@@ -150,6 +151,7 @@ class InfeedWidget(VerticalGroup):
 
             if result:
                 type = InfeedType(result["infeed_type"])
+
                 if type == InfeedType.BELOW_THRESHOLD:
                     low_threshold = 0
                     high_threshold = 2500
@@ -157,13 +159,17 @@ class InfeedWidget(VerticalGroup):
                     low_threshold = int(float(result["low_threshold"]) * 10.0)
                     high_threshold = int(float(result["high_threshold"]) * 10.0)
 
-                    # Write the new configuration (both enabled and disabled cases)
-                    self.agent.request(
-                        PowerInfeed.write_group(
-                            self.device_address,
-                            self.infeed_type, low_threshold, high_threshold
-                        )
-                    )
+                # Write the new configuration (both enabled and disabled cases)
+                try:
+                    self.agent.request(PowerInfeed.write_group(
+                        device_id=self.device_address,
+                        type=type.value,
+                        low_threshold=low_threshold,
+                        high_threshold=high_threshold
+                    ))
+                except Exception as e:
+                    print("Exception in infeed config:", e)
+                    traceback.print_exc()
 
 class InfeedConfigDialog(ModalScreen):
     """Configuration dialog for infeed settings.
@@ -172,6 +178,10 @@ class InfeedConfigDialog(ModalScreen):
         - Lower voltage threshold (0.0 - 250V)
         - Upper voltage threshold (0.0 - 250V)
     """
+
+    LOW_LABEL_TEXT = "Low voltage threshold (V):"
+    UPPER_LABEL_TEXT = "Upper voltage threshold (V):"
+
     def __init__(self, infeed_type: InfeedType, low_threshold: float, high_threshold: float):
         """Initialize the configuration dialog.
 
@@ -188,13 +198,15 @@ class InfeedConfigDialog(ModalScreen):
     def compose(self) -> ComposeResult:
         with Vertical(id="dialog", classes="box"):
             # Infeed type
-            with RadioSet(id="infeed_type"):
-                yield RadioButton("any", value=self.infeed_type == InfeedType.BELOW_THRESHOLD)
-                yield RadioButton("DC", value=self.infeed_type == InfeedType.DC)
-                yield RadioButton("AC", value=self.infeed_type == InfeedType.AC)
+            with Horizontal(id="infeed_type_row"):
+                yield Label("Infeed type:", classes="field_label")
+                with RadioSet(id="infeed_type"):
+                    yield RadioButton("Don't care", value=self.infeed_type == InfeedType.BELOW_THRESHOLD)
+                    yield RadioButton("DC", value=self.infeed_type == InfeedType.DC)
+                    yield RadioButton("AC", value=self.infeed_type == InfeedType.AC)
 
-            with Horizontal():
-                yield Label("Upper voltage threshold (V):", classes="field_label")
+            with Horizontal(id="upper_thresholds_row"):
+                yield Label(InfeedConfigDialog.UPPER_LABEL_TEXT, id="upper", classes="field_label")
                 yield Input(
                     placeholder="0.0 - 250.0",
                     id="high_threshold",
@@ -202,8 +214,8 @@ class InfeedConfigDialog(ModalScreen):
                 )
 
             # Low filter
-            with Horizontal():
-                yield Label("Low voltage threshold (V):", classes="field_label")
+            with Horizontal(id="low_thresholds_row"):
+                yield Label(InfeedConfigDialog.LOW_LABEL_TEXT, id="lower", classes="field_label")
                 yield Input(
                     placeholder="0.0 - 250.0",
                     id="low_threshold",
@@ -232,13 +244,14 @@ class InfeedConfigDialog(ModalScreen):
 
     def on_mount(self) -> None:
         self.query_one("#dialog").border_title = f"Infeed configuration"
-        self.query_one("#infeed_type").focus()
+        infeed_type = self.query_one("#infeed_type")
+        infeed_type.focus()
         self.query_one("#low_threshold", Input).value = str(self.low_threshold)
         self.query_one("#high_threshold", Input).value = str(self.high_threshold)
 
         # Validate initial values and set OK state accordingly
         self._validate_all()
-        self._apply_disable_state(self.disabled)
+        self._apply_disable_state(infeed_type.pressed_index == 0)
 
     def on_input_changed(self, event: Input.Changed) -> None:
         """Re-validate when user edits either input."""
@@ -246,22 +259,20 @@ class InfeedConfigDialog(ModalScreen):
             self._validate_all()
 
     def on_radio_set_changed(self, event: RadioSet.Changed) -> None:
-        if event.radio_set.pressed_index == 0:
-            # Disable both thresholds as are no longer applicable
-            self._apply_disable_state(event.value)
+        # Disable both thresholds as are no longer applicable
+        self._apply_disable_state(event.radio_set.pressed_index == 0)
 
     def _apply_disable_state(self, disabled: bool) -> None:
         """Enable/disable inputs"""
-        low_input = self._validate_one(self.query_one("#low_threshold", Input))
-        high_input = self._validate_one(self.query_one("#high_threshold", Input))
-        ok_btn = self.query_one("#ok", Button)
+        low_input = self.query_one("#low_threshold", Input)
+        high_input = self.query_one("#high_threshold", Input)
 
         low_input.disabled = disabled
         high_input.disabled = disabled
 
         if disabled:
             # If relay is disabled, allow OK regardless of input validity
-            ok_btn.disabled = False
+            self.query_one("#ok", Button).disabled = False
         else:
             # Re-evaluate validity to set OK state
             self._validate_all()
@@ -271,6 +282,25 @@ class InfeedConfigDialog(ModalScreen):
         self.low_threshold = self._validate_one(self.query_one("#low_threshold", Input))
         self.high_threshold = self._validate_one(self.query_one("#high_threshold", Input))
         ok_btn.disabled = not (self.low_threshold and self.high_threshold)
+
+        # If upper is less than lower, switch labels
+        lower_label = self.query_one("#lower", Label)
+        upper_label = self.query_one("#upper", Label)
+
+        if (not self.low_threshold) or (not self.high_threshold):
+            # Invalid values, don't switch
+            lower_label.text = InfeedConfigDialog.LOW_LABEL_TEXT
+            upper_label.text = InfeedConfigDialog.UPPER_LABEL_TEXT
+        else:
+            low_val = float(self.query_one("#low_threshold", Input).value)
+            high_val = float(self.query_one("#high_threshold", Input).value)
+
+            if high_val < low_val:
+                lower_label.text = InfeedConfigDialog.UPPER_LABEL_TEXT
+                upper_label.text = InfeedConfigDialog.LOW_LABEL_TEXT
+            else:
+                lower_label.text = InfeedConfigDialog.LOW_LABEL_TEXT
+                upper_label.text = InfeedConfigDialog.UPPER_LABEL_TEXT
 
     @staticmethod
     def _parse_and_check(value_str: str) -> tuple[bool, float | None]:

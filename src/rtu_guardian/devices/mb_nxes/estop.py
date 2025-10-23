@@ -1,7 +1,8 @@
 from textual.widget import Text
-from textual.widgets import DataTable, Button, Input, Rule, Static
-from textual.containers import VerticalGroup, HorizontalGroup
+from textual.widgets import DataTable, Button, Input, Rule, Static, Label
+from textual.containers import VerticalGroup, HorizontalGroup, Vertical, Horizontal
 from textual.coordinate import Coordinate
+from textual.screen import ModalScreen
 
 from rtu_guardian.modbus.agent import ModbusAgent
 from rtu_guardian.devices.utils import modbus_poller
@@ -11,16 +12,8 @@ from .registers import (
     DEVICE_CONTROL_PULSE,
     DEVICE_CONTROL_RESET,
     DEVICE_CONTROL_TERMINAL,
-    DEVICE_ESTOP_CAUSE_RELAY_FAULT,
-    DEVICE_ESTOP_CAUSE_MODBUS_COMMLOSS,
-    DEVICE_ESTOP_CAUSE_INFEED_POLARITY_INVERSION,
-    DEVICE_ESTOP_CAUSE_UNEXPECTED_VOLTAGE_TYPE,
     DEVICE_ESTOP_CAUSE_UNDERVOLTAGE,
     DEVICE_ESTOP_CAUSE_OVERVOLTAGE,
-    DEVICE_ESTOP_CAUSE_COMMAND,
-    DEVICE_ESTOP_CAUSE_APPLICATION_CRASH,
-    DEVICE_ESTOP_CAUSE_EEPROM_CORRUPTED,
-    DEVICE_ESTOP_CAUSE_SUPPLY_FAILURE,
     SafetyLogic,
     StatusAndMonitoring,
     DeviceStatus,
@@ -28,7 +21,7 @@ from .registers import (
 )
 
 from .static_status_list import StaticStatusList
-
+from textual.widgets import Checkbox
 
 ROWS = [
     "Status",
@@ -46,24 +39,33 @@ class EStopWidget(VerticalGroup):
         super().__init__()
         self.agent = agent
         self.device_address = device_address
+        self.conf = {
+            "under": False,
+            "over": False,
+            "incorrect": False,
+            "comm": 0
+        }
 
     def compose(self):
         with HorizontalGroup(id="top-section"):
             with VerticalGroup():
                 yield DataTable(show_header=False, show_cursor=False)
-                yield Button("Clear", id="estop-clear-button")
+
+                with HorizontalGroup():
+                    yield Button("Clear", id="estop-clear-button")
+                    yield Button("Configure>", id="estop-configure-button")
 
             yield StaticStatusList([
                 "Relay fault",
                 "Modbus comm loss",
-                "Infeed polarity",
-                "Voltage type",
-                "Low infeed",
-                "High infeed",
+                "Bad Infeed polarity",
+                "Bad Infeed Voltage type",
+                "Infeed too low",
+                "Infeed too high",
                 "External EStop",
-                "Application crash",
-                "EEProm recovered",
-                "Supply voltage failure",
+                "Application crashed",
+                "EEProm was recovered",
+                "Supply voltage failed",
             ])
 
         yield Rule(line_style="heavy")
@@ -135,6 +137,7 @@ class EStopWidget(VerticalGroup):
 
     def on_read_estop_status(self, pdu: dict[str, int]):
         table = self.query_one(DataTable)
+        status_list = self.query_one(StaticStatusList)
 
         try:
             status = DeviceStatus(pdu["status"]).name
@@ -142,11 +145,15 @@ class EStopWidget(VerticalGroup):
             status = f"{pdu['status']}"
 
         table.update_cell_at(Coordinate(0, 1), status)
-        table.update_cell_at(Coordinate(1, 1), pdu["diagnostic_code"])
 
         # Manage the StaticStatusList
-        status_list = self.query_one(StaticStatusList)
         cause = pdu["estop_cause"]
+        diag_code = pdu["diagnostic_code"]
+
+        if cause & (DEVICE_ESTOP_CAUSE_UNDERVOLTAGE | DEVICE_ESTOP_CAUSE_OVERVOLTAGE):
+            diag_code = str(diag_code) + " (" + str(diag_code / 10.0) + " V)"
+
+        table.update_cell_at(Coordinate(1, 1), diag_code)
 
         if cause != 0:
             # Display the StaticStatusList now that we have data
@@ -154,28 +161,35 @@ class EStopWidget(VerticalGroup):
 
             # Set the title to indicate the cause is ongoing or historic
             if pdu["status"] == DeviceStatus.ESTOP.value:
-                self.border_title = f"[yellow]On-going cause"
+                status_list.border_title = f"[yellow]On-going cause"
             elif pdu["status"] == DeviceStatus.TERMINAL.value:
-                self.border_title = f"[red]Terminal cause"
+                status_list.border_title = f"[red]Terminal cause"
             else:
-                self.border_title = f"Uncleared Cause"
+                status_list.border_title = f"[green]Previous Cause"
 
             # Update the status list
             status_list.bin_status = cause
+        else:
+            # No cause active or historic
+            status_list.visible = False
 
     def on_read_safety_logic(self, pdu: dict[str, int]):
         table = self.query_one(DataTable)
 
-        table.update_cell_at(Coordinate(2, 1),
-            "[red]Yes" if pdu["estop_on_under_voltage"] else "No")
-        table.update_cell_at(Coordinate(3, 1),
-            "[red]Yes" if pdu["estop_on_over_voltage"] else "No")
-        table.update_cell_at(Coordinate(4, 1),
-            "[red]Yes" if pdu["estop_on_incorrect_voltage_type"] else "No")
-        table.update_cell_at(Coordinate(5, 1),
-            "[red]Yes" if pdu["estop_on_comm_lost"] else "No")
+        self.conf["under"] = bool(pdu["estop_on_under_voltage"])
+        self.conf["over"] = bool(pdu["estop_on_over_voltage"])
+        self.conf["incorrect"] = bool(pdu["estop_on_incorrect_voltage_type"])
+        self.conf["comm"] = int(pdu["estop_on_comm_lost"])
 
-    async def on_button_pressed(self, event):
+        table.update_cell_at(Coordinate(2, 1),
+            "[red]Yes" if self.conf["under"] else "No")
+        table.update_cell_at(Coordinate(3, 1),
+            "[red]Yes" if self.conf["over"] else "No")
+        table.update_cell_at(Coordinate(4, 1),
+            "[red]Yes" if self.conf["incorrect"] else "No")
+        table.update_cell_at(Coordinate(5, 1), str(self.conf["comm"]))
+
+    async def on_button_pressed(self, event) -> None:
         button_id = event.button.id
 
         if button_id in (
@@ -207,6 +221,34 @@ class EStopWidget(VerticalGroup):
                     value
                 )
             )
+        elif button_id == "estop-configure-button":
+            # Open the configuration dialog
+            dialog = EStopConfigDialog(self.conf.copy())
+
+            try:
+                result = await self.app.push_screen_wait(dialog)
+                to_change = {}
+
+                if result is not None:
+                    if result.get("under") != self.conf["under"]:
+                        to_change[SafetyLogic.ESTOP_ON_UNDER_VOLTAGE] = result["under"]
+                    if result.get("over") != self.conf["over"]:
+                        to_change[SafetyLogic.ESTOP_ON_OVER_VOLTAGE] = result["over"]
+                    if result.get("incorrect") != self.conf["incorrect"]:
+                        to_change[SafetyLogic.ESTOP_ON_INCORRECT_VOLTAGE_TYPE] = result["incorrect"]
+                    if result.get("comm") != self.conf["comm"]:
+                        to_change[SafetyLogic.ESTOP_ON_COMM_LOST] = result["comm"]
+
+                    for key, val in to_change.items():
+                        self.agent.request(
+                            SafetyLogic.write_single(
+                                self.device_address,
+                                key,
+                                int(val)
+                            )
+                    )
+            except Exception as e:
+                self.log.error(f"Failed to configure EStop: {e}")
 
     def on_input_changed(self, event):
         input_widget = event.input
@@ -239,3 +281,90 @@ class EStopWidget(VerticalGroup):
         else:
             input_widget.styles.color = "green"
 
+
+class EStopConfigDialog(ModalScreen):
+    """Dialog to configure which causes trigger the EStop."""
+
+    def __init__(self, conf: dict):
+        super().__init__()
+        self.conf = conf
+
+    def compose(self):
+        # Checkbox definitions (key, label)
+        checkbox_defs = [
+            ("under", "Stop on under voltage"),
+            ("over", "Stop on over voltage"),
+            ("incorrect", "Stop on incorrect voltage type")
+        ]
+
+        with Vertical(id="dialog", classes="box"):
+            for key, label in checkbox_defs:
+                yield Checkbox(label, id=key, value=self.conf.get(key, False))
+            with Horizontal():
+                yield Label("Stop on comm lost", classes="field_label")
+                yield Input(
+                    type="integer",
+                    placeholder="0-65535",
+                    id="comm",
+                    value=str(self.conf.get("comm", 0))
+                )
+            yield Rule(line_style="heavy")
+            with HorizontalGroup():
+                yield Button("OK", id="ok", variant="success")
+                yield Button("Cancel", id="cancel", variant="error")
+
+    def on_mount(self):
+        self.query_one("#dialog").border_title = "EStop Configuration"
+        # Validate initial state
+        self._validate_comm_input()
+
+    def _validate_comm_input(self) -> bool:
+        """Validate the comm input and update UI accordingly. Returns True if valid."""
+        input_widget = self.query_one("#comm", Input)
+        ok_button = self.query_one("#ok", Button)
+
+        value = input_widget.value.strip()
+        valid = False
+
+        if value != "":
+            try:
+                # Support hex notation (e.g., 0x1A) and decimal
+                num = int(value, 0)
+                if 0 <= num <= 65535:  # 16-bit range
+                    valid = True
+            except ValueError:
+                pass
+
+        # Update input styling
+        if valid:
+            input_widget.remove_class("invalid")
+        else:
+            input_widget.add_class("invalid")
+
+        # Enable/disable OK button
+        ok_button.disabled = not valid
+
+        return valid
+
+    def on_input_changed(self, event: Input.Changed) -> None:
+        """Handle input changes in the comm field."""
+        if event.input.id == "comm":
+            self._validate_comm_input()
+
+    def on_checkbox_changed(self, event: Checkbox.Changed) -> None:
+        self.conf[event.checkbox.id] = event.value
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "ok":
+            # Get final comm value
+            comm_input = self.query_one("#comm", Input)
+            try:
+                comm_value = int(comm_input.value.strip() or "0", 0)
+                self.conf["comm"] = comm_value
+            except ValueError:
+                # This shouldn't happen due to validation, but just in case
+                self.conf["comm"] = 0
+
+            self.dismiss(self.conf)
+        else:
+            self.dismiss()

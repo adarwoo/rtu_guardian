@@ -181,9 +181,6 @@ def modbus_holding_registers(
                     else:
                         raise TypeError(f"Invalid register key: {key!r}")
 
-                    if not ref.writable:
-                        raise ValueError(f"Register '{ref.name}' is not writable")
-
                     resolved.append((ref.address, ref.size, value, ref))
 
                 # Sort by address
@@ -217,47 +214,7 @@ def modbus_holding_registers(
                             f"or sequence of length {size}"
                         )
 
-                return WriteMultipleRegisters(device_id, start, ordered_values)
-            def write_group(cls, device_id: int, **kwargs: int):
-                if not kwargs:
-                    raise ValueError("At least one register name/value pair required")
-
-                resolved = []
-                for name, value in kwargs.items():
-                    ref = cls.by_name(name)
-                    if not ref.writable:
-                        raise ValueError(f"Register '{name}' is not writable")
-                    resolved.append((ref.address, ref.size, value, ref))
-
-                resolved.sort(key=lambda t: t[0])
-                addresses = [r[0] for r in resolved]
-                start = addresses[0]
-
-                # validate contiguity
-                for i in range(len(resolved) - 1):
-                    curr_addr, curr_size, curr_ref = resolved[i]
-                    next_addr, _, _ = resolved[i + 1]
-                    if next_addr != curr_addr + curr_size:
-                        raise ValueError(
-                            f"Registers must be contiguous; got 0x{curr_addr:04X} "
-                            f"(size {curr_ref.size}) then 0x{next_addr:04X}"
-                        )
-
-                ordered_values = []
-                for _, size, value, _ in resolved:
-                    if size == 1:
-                        ordered_values.append(value)
-                    elif size == 2 and isinstance(value, int):
-                        ordered_values.extend([(value >> 16) & 0xFFFF, value & 0xFFFF])
-                    elif size > 1 and isinstance(value, (list, tuple)) and len(value) == size:
-                        ordered_values.extend(value)
-                    else:
-                        raise ValueError(
-                            f"Value for multi-word register must be int (for size==2) "
-                            f"or sequence of length {size}"
-                        )
-
-                return WriteMultipleRegisters(device_id, start, ordered_values)
+                return WriteMultipleRegisters(device_id, address=start, values=ordered_values)
 
             cls.write_group = write_group
 

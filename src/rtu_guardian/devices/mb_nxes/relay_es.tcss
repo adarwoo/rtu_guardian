@@ -132,6 +132,11 @@ EStopWidget {
          margin-left: 12;
          margin-top: 2;
       }
+
+      #estop-configure-button {
+         margin-left: 8;
+         margin-top: 2;
+      }
    }
 
    #middle-section {
@@ -251,7 +256,7 @@ RelayConfigDialog {
       border: round $primary;
       align: center middle;
       padding: 1 1;
-      width: 60;
+      width: 80;
       min-height: 16;
       height: 40%;
       height: 20;
@@ -260,6 +265,19 @@ RelayConfigDialog {
    #title {
       text-align: center;
       margin-bottom: 1;
+   }
+
+   #top-section {
+      height: 12;
+   }
+
+   #open-on-section {
+      padding: 0 2;
+      width: 42%;
+   }
+
+   #filter-section {
+      padding: 0 0;
    }
 
    .field_label {
@@ -271,12 +289,111 @@ RelayConfigDialog {
       width: 16;
    }
 
+   .invalid {
+      border: round red;
+   }
+
    #dialog-buttons {
       align: center middle;
       width: 100%;
 
       Button {
          margin: 1 8;
+      }
+   }
+}
+
+InfeedConfigDialog {
+   #dialog {
+      background: $panel;
+      border: round $primary;
+      align: center middle;
+      padding: 1 1;
+      width: 60;
+      min-height: 21;
+      height: 40%;
+   }
+
+   #infeed_type_row {
+      height: 5;
+   }
+
+   #upper_thresholds_row, #low_thresholds_row {
+      height: 3;
+   }
+
+   #upper_thresholds_row, #low_thresholds_row, #thresholds_row, #infeed_type_row {
+      width: 100%;
+      align-horizontal: center;
+      margin-bottom: 1;
+   }
+
+   #infeed_type {
+      width: 50%;
+      margin-bottom: 1;
+   }
+
+   #title {
+      text-align: center;
+      margin-bottom: 1;
+   }
+
+   .threshold_input {
+      width: 15;
+   }
+
+   .field_label {
+      padding: 1 1;
+      width: 20;
+   }
+
+   .filter_input {
+      width: 10;
+   }
+
+   .invalid {
+      border: round red;
+   }
+
+   #dialog-buttons {
+      align: center middle;
+      width: 100%;
+
+      Button {
+         margin: 0 8;
+      }
+   }
+}
+
+EStopConfigDialog {
+   #dialog {
+      background: $panel;
+      border: round $primary;
+      padding: 1 1;
+      width: 60;
+      height: 22;
+   }
+
+   Checkbox {
+      width: 40;
+      margin: 0 1;
+   }
+
+   .field_label {
+      width: 20;
+      padding: 1 1;
+   }
+
+   #comm {
+      width: 16;
+   }
+
+   HorizontalGroup {
+      width: 100%;
+      align-horizontal: center;
+
+      Button {
+         margin: 0 8;
       }
    }
 }

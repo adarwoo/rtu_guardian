@@ -45,6 +45,10 @@ class RelayWidget(HorizontalGroup):
         self.closed_filter = 0.0
         self.opened_filter = 0.0
         self.disabled = False
+        self.open_on_infeed_fault = False
+        self.open_on_comm_lost = False
+        self.infeed_fault_relay_mask = None
+        self.comm_lost_relay_mask = None
 
     def compose(self):
         # Left: Open/Close buttons (vertical)
@@ -73,6 +77,13 @@ class RelayWidget(HorizontalGroup):
                 f"relay_{self.relay_id}_cycles"
             )
         )
+
+        self.agent.request(SafetyLogic.read(
+            self.device_address,
+            self.on_read_safety_logic,
+            SafetyLogic.INFEED_FAULT_RELAY_MASK,
+            SafetyLogic.COMM_LOST_RELAY_MASK,
+        ))
 
     def on_read_coil(self, pdu: ModbusPDU):
         """ Process coil status """
@@ -140,11 +151,12 @@ class RelayWidget(HorizontalGroup):
     def on_read_safety_logic(self, pdu: dict[str, int]):
         table = self.query_one(DataTable)
 
-        infeed_mask = pdu["infeed_fault_relay_mask"]
-        comm_mask = pdu["comm_lost_relay_mask"]
+        self.infeed_mask = pdu["infeed_fault_relay_mask"]
+        self.comm_mask = pdu["comm_lost_relay_mask"]
 
-        open_on_infeed_faults = (infeed_mask & (1 << (self.relay_id - 1))) != 0
-        open_on_comm_lost = (comm_mask & (1 << (self.relay_id - 1))) != 0
+        mask = 1 << (self.relay_id - 1)
+        open_on_infeed_faults = (self.infeed_mask & mask) != 0
+        open_on_comm_lost = (self.comm_mask & mask) != 0
 
         table.update_cell_at(Coordinate(5, 1), "[b]Yes" if open_on_infeed_faults else "No")
         table.update_cell_at(Coordinate(6, 1), "[b]Yes" if open_on_comm_lost else "No")
@@ -165,8 +177,15 @@ class RelayWidget(HorizontalGroup):
         elif event.button.id == f"config_{self.relay_id}":
             from rtu_guardian.devices.mb_nxes.relay_config import RelayConfigDialog
 
+            mask = 1 << (self.relay_id - 1)
+
             dialog = RelayConfigDialog(
-                self.relay_id, self.closed_filter, self.opened_filter, self.disabled
+                self.relay_id,
+                self.closed_filter,
+                self.opened_filter,
+                self.disabled,
+                (self.infeed_mask & mask) != 0,
+                (self.comm_mask & mask) != 0
             )
 
             result = await self.app.push_screen_wait(dialog)
@@ -197,6 +216,29 @@ class RelayWidget(HorizontalGroup):
                             value
                         )
                     )
+
+                    # Apply safety logic changes
+                    mask = 1 << (self.relay_id - 1)
+                    infeed_mask = self.infeed_mask | mask if result["open_on_infeed_fault"] else self.infeed_mask & ~mask
+                    comm_mask = self.comm_mask | mask if result["open_on_comm_lost"] else self.comm_mask & ~mask
+
+                    if infeed_mask != self.infeed_mask:
+                        self.agent.request(
+                            SafetyLogic.write_single(
+                                self.device_address,
+                                SafetyLogic.INFEED_FAULT_RELAY_MASK,
+                                infeed_mask
+                            )
+                        )
+
+                    if comm_mask != self.comm_mask:
+                        self.agent.request(
+                            SafetyLogic.write_single(
+                                self.device_address,
+                                SafetyLogic.COMM_LOST_RELAY_MASK,
+                                comm_mask
+                            )
+                        )
 
     def watch_closed_filter(self, value: float) -> None:
         """Update UI when closed_filter changes."""
