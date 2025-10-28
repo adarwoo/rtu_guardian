@@ -13,10 +13,10 @@ from .factory import factory
 logger = Logger("device")
 
 class DeviceState(Enum):
-    QUERYING = auto()
-    UNKNOWN = auto()
-    IDENTIFIED = auto()
-    NO_REPLY = auto()
+    QUERYING = auto()    # Device is being queried
+    UNKNOWN = auto()     # Device is unknown
+    IDENTIFIED = auto()  # Device has been identified
+    NO_REPLY = auto()    # Device did not reply
 
 class ScannerStage(Enum):
     INITIAL = auto()

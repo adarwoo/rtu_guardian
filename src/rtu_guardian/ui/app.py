@@ -12,6 +12,7 @@ from rtu_guardian.config import config
 
 from rtu_guardian.ui.config_dialog import ConfigDialog, ConfigDialogClosed
 from rtu_guardian.modbus.agent import ModbusAgent
+from rtu_guardian.ui.recovery_dialog import RecoveryDialog
 
 
 class TextualLogHandler(logging.Handler):
@@ -73,6 +74,9 @@ class RTUGuardian(App):
         # TabContent that holds all device panes
         self.tab_content = TabbedContent(id="devices")
 
+        # Store worker handle to cancel it when recovery mode is entered or exiting
+        self._worker = None
+
     def on_connection_status(self, status: bool):
         self.connected = status
 
@@ -120,17 +124,13 @@ class RTUGuardian(App):
             await self.push_screen(ConfigDialog())
 
         # Start the agent
-        self.run_worker(
+        self._worker = self.run_worker(
             self.modbus_agent.run_async(), name="modbus_agent"
         )
 
         # Re-open any previously open devices
         for device_id in config['device_ids']:
             await self.process_add_device(device_id)
-
-    async def on_shutdown(self) -> None:
-        # Tell the agent to stop gracefully
-        self.modbus_agent.stop()
 
     def compose(self):
         yield Header()
@@ -148,8 +148,24 @@ class RTUGuardian(App):
 
     async def action_recovery(self):
         from .recovery_dialog import RecoveryDialog
-        await self.push_screen(RecoveryDialog())
 
+        # Stop the current agent - and close the connection
+        if self._worker:
+            self._worker.cancel()
+            self._worker = None
+
+        # Create a new agent
+        await self.push_screen(RecoveryDialog(), callback=self._on_recovery_dialog_closed)
+
+    def _on_recovery_dialog_closed(self, result):
+        """Handle recovery dialog result."""
+
+        # Restart the normal agent again
+        self._worker = self.run_worker(
+            self.modbus_agent.run_async(), name="modbus_agent"
+        )
+
+    # Create a new agent
     async def action_add(self):
         from .add_device_dialog import AddDeviceDialog
 

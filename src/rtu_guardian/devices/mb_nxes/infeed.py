@@ -116,13 +116,18 @@ class InfeedWidget(VerticalGroup):
         """ Process input registers """
         table = self.query_one(DataTable)
 
-        voltage_type = InfeedType(pdu["infeed_type"])
+        self.infeed_type = pdu["infeed_type"]
+
+        if self.infeed_type is InfeedType.BELOW_THRESHOLD:
+            voltage_type = "Not detected"
+        else:
+            voltage_type = InfeedType(self.infeed_type).name
 
         current_voltage = pdu["infeed_voltage"] / 10.0
         lowest_measured_voltage = pdu["infeed_lowest"] / 10.0
         highest_measured_voltage = pdu["infeed_highest"] / 10.0
 
-        table.update_cell_at(Coordinate(1, 1), f"{voltage_type.name}")
+        table.update_cell_at(Coordinate(1, 1), f"{voltage_type}")
         table.update_cell_at(Coordinate(3, 1), f"{lowest_measured_voltage}")
         table.update_cell_at(Coordinate(5, 1), f"{highest_measured_voltage}")
         table.update_cell_at(Coordinate(6, 1), f"{current_voltage}")
@@ -201,9 +206,12 @@ class InfeedConfigDialog(ModalScreen):
             with Horizontal(id="infeed_type_row"):
                 yield Label("Infeed type:", classes="field_label")
                 with RadioSet(id="infeed_type"):
-                    yield RadioButton("Don't care", value=self.infeed_type == InfeedType.BELOW_THRESHOLD)
-                    yield RadioButton("DC", value=self.infeed_type == InfeedType.DC)
-                    yield RadioButton("AC", value=self.infeed_type == InfeedType.AC)
+                    yield RadioButton("No monitoring",
+                        value=bool(self.infeed_type == InfeedType.BELOW_THRESHOLD.value))
+                    yield RadioButton("DC",
+                        value=bool(self.infeed_type == InfeedType.DC.value))
+                    yield RadioButton("AC",
+                        value=bool(self.infeed_type == InfeedType.AC.value))
 
             with Horizontal(id="upper_thresholds_row"):
                 yield Label(InfeedConfigDialog.UPPER_LABEL_TEXT, id="upper", classes="field_label")

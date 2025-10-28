@@ -1,19 +1,18 @@
-from typing import override
-
-from textual.widgets import DataTable, Switch, Static
+from textual.widgets import DataTable, Switch, Static, Button
 from textual.widget import Text
 from textual.containers import HorizontalGroup, Vertical, Horizontal
 from textual.coordinate import Coordinate
 
 from pymodbus.pdu.mei_message import ReadDeviceInformationResponse
 
-from rtu_guardian.devices.mb_nxes.registers import DeviceControl, StatusAndMonitoring
+from rtu_guardian.devices.mb_nxes.registers import DEVICE_CONTROL_UNLOCK, DeviceControl, StatusAndMonitoring
 from rtu_guardian.modbus.agent import ModbusAgent
 from rtu_guardian.modbus.request import ReadDeviceInformation
 
 from rtu_guardian.devices.utils import modbus_poller
 
 from .static_status_list import StaticStatusList
+from textual.widgets import Button
 
 
 ROWS = [
@@ -42,25 +41,29 @@ class InfoWidget(HorizontalGroup):
         HorizontalGroup.__init__(self)
         self.agent = agent
         self.device_address = device_address
+        self._awaiting_factory_confirm = 0
 
     def compose(self):
         with Vertical():
             yield DataTable(show_header=False, show_cursor=False)
-            yield Horizontal(
-                Static("Locate: "),
-                Switch(id="locate-switch"),
-                id="locate-container"
-            )
+            with Horizontal(id="locate-container"):
+                yield Static("Locate: ")
+                yield Switch(id="locate-switch")
+            with Horizontal(id="buttons"):
+                yield Button("Reset Device", id="reset", variant="warning")
+                yield Button("Factory Reset", id="factory-reset", variant="error")
 
         yield StaticStatusList([
-            "Relay fault",
-            "Infeed polarity",
-            "Voltage type",
-            "Low infeed",
-            "High infeed",
-            "Application crash",
+            "Relay(s) fault",
+            None,  # Gap for Bit1
+            "Infeed polarity inverted",
+            "Infeed incorrect type",
+            "Infeed below threshold",
+            "Infeed above threshold",
+            None, None, # Gaps for Bit6 and Bit7
+            "Recovery from crash",
             "EEProm recovered",
-            "Supply voltage failure",
+            "Power supply fault",
         ])
 
     def on_mount(self):
@@ -145,3 +148,61 @@ class InfoWidget(HorizontalGroup):
                     event.value
                 )
             )
+
+    def on_button_pressed(self, event: Button.Pressed):
+        """Handle Reset and Factory Reset button presses.
+
+        - Reset: write the reset register immediately.
+        - Factory Reset: require a second confirm press within 5 seconds.
+        """
+        btn = event.button
+
+        if btn.id == "reset":
+            self.agent.request(
+                DeviceControl.write_single(
+                    self.device_address,
+                    DeviceControl.DEVICE_RESET,
+                    DEVICE_CONTROL_UNLOCK
+                )
+            )
+
+            self.log("Requested device reset", level="info")
+        elif btn.id == "factory-reset":
+            confirm_btn: Button = self.query_one("#factory-reset")
+
+            # Lazily add a confirmation flow: first press asks to confirm,
+            # second press within timeout performs the factory reset.
+            if self._awaiting_factory_confirm == 0:
+                self._awaiting_factory_confirm = 3  # seconds to confirm
+                confirm_btn.label = "Confirm (3s)"
+                confirm_btn.variant = "warning"
+
+                # Revert confirmation state after 3 seconds
+                def _cancel():
+                    self._awaiting_factory_confirm -= 1
+
+                    if self._awaiting_factory_confirm > 0:
+                        confirm_btn.label = f"Confirm ({self._awaiting_factory_confirm}s)"
+                        self.set_timer(1, _cancel)
+                        return
+                    confirm_btn.label = "Factory Reset"
+                    confirm_btn.variant = "error"
+
+                self.set_timer(1, _cancel)
+
+                return
+
+            confirm_btn.label = "Factory Reset"
+            confirm_btn.variant = "error"
+
+            # Second press -> perform factory reset
+            self.agent.request(
+                DeviceControl.write_single(
+                    self.device_address,
+                    # DeviceControl.RESET_TO_FACTORY_DEFAULTS,
+                    DeviceControl.DEVICE_RESET,
+                    DEVICE_CONTROL_UNLOCK
+                )
+            )
+
+            self.log("Requested factory reset", level="warning")

@@ -69,15 +69,11 @@ InfeedWidget Button {
 
 InfoWidget {
    background: $boost;
-   height: 16;
+   height: 18;
    max-width: 72;
    margin: 1;
    border: round $primary;
-   padding: 1 1;
-
-   Button {
-      margin: 2 1;
-   }
+   padding: 0 1;
 
    StaticStatusList {
       border: round $primary;
@@ -89,8 +85,8 @@ InfoWidget {
       margin-right: 1;
    }
 
-   Horizontal {
-      margin: 1 1 0 2;
+   #locate-container {
+      margin: 1 1 0 0;
       align-horizontal: center;
       width: 100%;
 
@@ -98,6 +94,12 @@ InfoWidget {
          padding: 1 1;
          height: 3;
          width: 10;
+      }
+   }
+
+   #buttons {
+      Button {
+         margin: 0 3;
       }
    }
 }

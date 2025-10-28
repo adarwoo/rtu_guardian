@@ -37,18 +37,22 @@ class StaticStatusList(Widget):
         super().__init__(id=id, classes=classes)
         self.items = items
         self._statics = []
+        self.map_pos = {}
 
     def compose(self):
         with Vertical():
             self._statics = []
             for i, label in enumerate(self.items):
+                if label is None:
+                    continue
                 static = Static(label, classes="status-list-item-idle")
                 self._statics.append(static)
+                self.map_pos[i] = static
                 yield static
 
     def watch_bin_status(self, value: int):
         # Update the style of each item based on the corresponding bit in bin_status
-        for i, static in enumerate(self._statics):
+        for i, static in self.map_pos.items():
             if (value >> i) & 1:
                 static.add_class("error")
             else:

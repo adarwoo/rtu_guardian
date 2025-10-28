@@ -1,6 +1,5 @@
 import asyncio
 import faulthandler
-import logging
 import os
 
 from textual.features import parse_features

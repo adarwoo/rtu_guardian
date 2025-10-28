@@ -4,6 +4,25 @@ Screen {
    #devices {
       width: 100%;
       height: 100%;
+      align: center middle;
+
+      TabPane {
+         align: center middle;
+
+         .scanning-device-border {
+            height: 10;
+            width: 50;
+            border: vkey $primary;
+            align: center middle;
+            border-title-align: center;
+
+            LoadingIndicator {
+               width: auto;
+               height: auto;
+               color: yellow;
+            }
+         }
+      }
    }
 }
 

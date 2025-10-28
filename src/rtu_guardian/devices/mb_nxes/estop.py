@@ -140,7 +140,13 @@ class EStopWidget(VerticalGroup):
         status_list = self.query_one(StaticStatusList)
 
         try:
-            status = DeviceStatus(pdu["status"]).name
+            status = DeviceStatus(pdu["status"])
+            if status == DeviceStatus.OPERATIONAL:
+                status = "[green]Operational"
+            elif status == DeviceStatus.ESTOP:
+                status = "[yellow]E-Stop"
+            elif status == DeviceStatus.TERMINAL:
+                status = "[red]Terminal"
         except ValueError:
             status = f"{pdu['status']}"
 

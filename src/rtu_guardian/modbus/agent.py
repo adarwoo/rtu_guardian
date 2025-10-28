@@ -10,16 +10,17 @@ from rtu_guardian.constants import MODBUS_TIMEOUT
 
 
 class ModbusAgent:
-    def __init__(self, requests: asyncio.Queue[Request], on_connection_status: callable):
+    def __init__(
+        self,
+        requests: asyncio.Queue[Request],
+        on_connection_status: callable,
+        recovery_mode: bool=False
+    ):
         self.requests = requests
         self.client: AsyncModbusSerialClient | None = None
         self._app = None
-        self._keep_going = True
         self.on_connection_status = on_connection_status
-
-    def stop(self):
-        self._keep_going = False
-        self.requests.put_nowait(None)   # sentinel to break .get()
+        self._recovery_mode = recovery_mode
 
     @property
     def connected(self):
@@ -32,8 +33,20 @@ class ModbusAgent:
         if self.connected:
             await self.client.close()
 
-        if config.is_usable:
-            try:
+        try:
+            if self._recovery_mode is True:
+                logger.info("Starting ModbusAgent in recovery mode")
+
+                self.client = AsyncModbusSerialClient(
+                    port=config['com_port'],
+                    baudrate=9600,
+                    stopbits=1,
+                    parity='N',
+                    timeout=MODBUS_TIMEOUT,
+                    retries=1,
+                    framer=FramerType.RTU
+                )
+            elif config.is_usable:
                 self.client = AsyncModbusSerialClient(
                     port=config['com_port'],
                     baudrate=config['baud'],
@@ -44,10 +57,10 @@ class ModbusAgent:
                     framer=FramerType.RTU
                 )
 
-                retval = await self.client.connect()
-                logger.info("Modbus client connected")
-            except (ModbusException, ValueError) as e:
-                logger.error(f"Error connecting to Modbus client: {e}")
+            retval = await self.client.connect()
+            logger.info("Modbus client connected")
+        except (ModbusException, ValueError) as e:
+            logger.error(f"Error connecting to Modbus client: {e}")
 
         return retval
 
@@ -57,12 +70,19 @@ class ModbusAgent:
         The purpose of the agent is to handle 1 request at a time.
         """
         try:
-            while self._keep_going:
+            while True:
                 if not self.connected:
                     connection = await self._open_connection()
                     self.on_connection_status(connection)
 
+                if not self.connected:
+                    await asyncio.sleep(1)
+                    continue
+
                 request: Request = await self.requests.get()
+
+                if request is None:  # Sentinel to stop
+                    break
 
                 try:
                     await request.execute(self.client)
@@ -71,8 +91,13 @@ class ModbusAgent:
 
         except asyncio.CancelledError:
             logger.info("Agent cancelled - exiting")
+
+            # Close the client connection gracefully
+            if self.client is not None and self.client.connected:
+                self.client.close()
         except Exception as e:
             logger.error(f"ModbusAgent encountered an error: {e}")
 
     def request(self, request: Request):
-        self.requests.put_nowait(request)
+        if self.client.connected:
+            self.requests.put_nowait(request)
