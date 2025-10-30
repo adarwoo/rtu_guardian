@@ -12,7 +12,6 @@ from rtu_guardian.config import config
 
 from rtu_guardian.ui.config_dialog import ConfigDialog, ConfigDialogClosed
 from rtu_guardian.modbus.agent import ModbusAgent
-from rtu_guardian.ui.recovery_dialog import RecoveryDialog
 
 
 class TextualLogHandler(logging.Handler):
@@ -147,7 +146,7 @@ class RTUGuardian(App):
         await self.push_screen(ConfigDialog())
 
     async def action_recovery(self):
-        from .recovery_dialog import RecoveryDialog
+        from rtu_guardian.ui.recovery_dialog import RecoveryScanningDialog
 
         # Stop the current agent - and close the connection
         if self._worker:
@@ -155,7 +154,7 @@ class RTUGuardian(App):
             self._worker = None
 
         # Create a new agent
-        await self.push_screen(RecoveryDialog(), callback=self._on_recovery_dialog_closed)
+        await self.push_screen(RecoveryScanningDialog(), callback=self._on_recovery_dialog_closed)
 
     def _on_recovery_dialog_closed(self, result):
         """Handle recovery dialog result."""

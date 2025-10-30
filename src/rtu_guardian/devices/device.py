@@ -14,13 +14,12 @@ from ..constants import (
     CSS_DISCONNECTED_DEVICE
 )
 
-from .scanner import DeviceScanner, DeviceState
-from .factory import DiscoveredDevice
+from .scanner import DeviceScanner, DeviceState, DeviceView
 
 logger = Logger("device")
 
 
-class Device(TabPane):
+class Device(TabPane, DeviceView):
     """
     The device is the TabPane which owns a given device.
     The content area defaults to the device's status text until the device
@@ -71,7 +70,7 @@ class Device(TabPane):
 
         if new_state == DeviceState.IDENTIFIED:
             css_class = CSS_KNOWN_DEVICE
-            title_prefix = self.device_typeid if hasattr(self, 'device_typeid') else "identified"
+            title_prefix = self.scanner.device_type or "identified"
         elif new_state == DeviceState.UNKNOWN:
             css_class = CSS_UNKNOWN_DEVICE
             title_prefix = "unknown"
@@ -87,9 +86,9 @@ class Device(TabPane):
         # Update tab styling
         self.set_title_prefix(title_prefix, css_class)
 
+    # Implement DeviceView interface
     def on_update_status(self, state: DeviceState, status_text: str, is_final: bool):
         """ Callback from the scanner to update status
-        When final, the tab may want to re-run the scanner if no reply
         :param state: The new device state
         :param status_text: The status text to display
         :param is_final: Whether this is a final state
@@ -97,14 +96,14 @@ class Device(TabPane):
         self.status_text = status_text
         self.device_state = state  # This will trigger watch_device_state
 
-        if state == DeviceState.IDENTIFIED:
-            self.device_typeid = self.scanner.device_typeid
-        elif state == DeviceState.NO_REPLY and is_final:
-            # Keep trying to identify only if not final
+        # Handle identification completion
+        if is_final and state == DeviceState.IDENTIFIED:
+            discovered_device = self.scanner.get_discovered_device()
+            if discovered_device:
+                self.status_text = f"Identified device: {self.scanner.device_type} ({discovered_device.module.__name__})"
+                self.set_title_prefix(self.scanner.device_type, CSS_KNOWN_DEVICE)
+                self.remove_children()
+                self.mount(discovered_device.widget(self.modbus_agent, self.device_address))
+        elif is_final and state == DeviceState.NO_REPLY:
+            # Keep trying to identify
             self.run_worker(self.scanner.start(), name=f"identify-{self.device_address}")
-
-    def on_device_identified(self, device: DiscoveredDevice):
-        self.status_text = f"Identified device from: {device.type} ({device.module.__name__})"
-        self.set_title_prefix(device.type, CSS_KNOWN_DEVICE)
-        self.remove_children()
-        self.mount(device.widget(self.modbus_agent, self.device_address))

@@ -5,15 +5,29 @@ from textual.coordinate import Coordinate
 
 from pymodbus.pdu.mei_message import ReadDeviceInformationResponse
 
-from rtu_guardian.devices.mb_nxes.registers import DEVICE_CONTROL_UNLOCK, DeviceControl, StatusAndMonitoring
+from rtu_guardian.devices.mb_nxes.registers import (
+    DEVICE_CONTROL_UNLOCK, DeviceControl, StatusAndMonitoring
+)
+
 from rtu_guardian.modbus.agent import ModbusAgent
 from rtu_guardian.modbus.request import ReadDeviceInformation
+
+from rtu_guardian.constants import (
+    VENDOR_NAME_OBJECT_CODE,
+    PRODUCT_CODE_OBJECT_CODE,
+    REVISION_OBJECT_CODE,
+    VENDOR_URL_OBJECT_CODE,
+    MODEL_NAME_OBJECT_CODE,
+)
+
 
 from rtu_guardian.devices.utils import modbus_poller
 
 from .static_status_list import StaticStatusList
 from textual.widgets import Button
 
+# Extra MEI Code for the number of relays
+NUMBER_OF_RELAYS_OBJECT_CODE = 0x81
 
 ROWS = [
     "Vendor name",
@@ -24,15 +38,6 @@ ROWS = [
     "Number of relays",
     "Running time"
 ]
-
-VENDOR_NAME_OBJECT_CODE = 0x00
-PRODUCT_CODE_OBJECT_CODE = 0x01
-REVISION_OBJECT_CODE = 0x02
-VENDOR_URL_OBJECT_CODE = 0x03
-PRODUCT_NAME_OBJECT_CODE = 0x04
-MODEL_NAME_OBJECT_CODE = 0x05
-USER_APPLICATION_NAME_OBJECT_CODE = 0x06
-NUMBER_OF_RELAYS_OBJECT_CODE = 0x80
 
 
 @modbus_poller(interval=0.5)
