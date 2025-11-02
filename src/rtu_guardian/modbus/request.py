@@ -3,6 +3,7 @@ from typing import Any, Callable, Awaitable, Optional
 
 from pymodbus.client import AsyncModbusSerialClient
 from pymodbus.exceptions import ModbusException, ModbusIOException
+import inspect
 
 CallbackType = Callable[[Any], Any]
 
@@ -49,15 +50,21 @@ class Request(ABC):
                 if retval.isError() and self.on_error:
                     self.on_error(retval.exception_code)
                 elif self.data_handler:
-                    self.data_handler(retval)
+                    res = self.data_handler(retval)
+                    if inspect.isawaitable(res):
+                        await res
 
             except ModbusIOException as e:
                 if self.on_no_response:
-                    self.on_no_response()
+                    res = self.on_no_response()
+                    if inspect.isawaitable(res):
+                        await res
 
             except ModbusException as e:
                 if self.on_error:
-                    self.on_error(str(e))
+                    res = self.on_error(str(e))
+                    if inspect.isawaitable(res):
+                        await res
 
             except Exception as e:
                 assert(False)
@@ -126,10 +133,10 @@ class WriteHoldingRegisters(Request):
     ADD_ARGS = {'address': 0, 'values': []}
 
     async def on_execute(self, client: AsyncModbusSerialClient):
-        return await client.write_holding_registers(
+        return await client.write_registers(
             self.address,
+            self.values,
             device_id=self.device_id,
-            values=self.values
         )
 
 class WriteSingleRegister(Request):

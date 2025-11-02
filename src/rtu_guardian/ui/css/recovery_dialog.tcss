@@ -15,7 +15,13 @@
    #cancel {
       width: auto;
       margin: 1 8;
-      text-align: left;
+      text-align: center;
+   }
+
+   #recover {
+      width: auto;
+      margin: 1 8;
+      text-align: center;
    }
 
    LoadingIndicator {

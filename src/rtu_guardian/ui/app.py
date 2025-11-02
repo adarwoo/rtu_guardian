@@ -151,6 +151,7 @@ class RTUGuardian(App):
         # Stop the current agent - and close the connection
         if self._worker:
             self._worker.cancel()
+            await self._worker.wait()
             self._worker = None
 
         # Create a new agent
@@ -215,4 +216,4 @@ class RTUGuardian(App):
         self.sub_title = f"{comport} {config['baud']} 8{config['parity']}{config['stop']}"
 
         header = self.query_one(Header)
-        header.styles.background = "green" if self.connected else "red"
+        header.styles.background = "green" if connected else "red"

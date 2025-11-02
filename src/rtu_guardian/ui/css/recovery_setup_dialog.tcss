@@ -1,0 +1,71 @@
+#recovery-setup-dialog {
+   background: $panel;
+   border: round $primary;
+   align: center middle;
+   width: 70;
+   height: 24;
+
+   Grid {
+      align: center middle;
+      grid-size: 3 3;
+      width: 90%;
+      height: auto;
+      grid-columns: auto 30;
+      margin-bottom: 1;
+
+      #device_id_input {
+         background: red;
+         width: 4;
+         padding: 6 6;
+      }
+   }
+
+   Horizontal {
+      align: center middle;
+      width: 80%;
+
+      Label {
+         width: auto;
+         text-align: right;
+         padding: 1 2;
+      }
+
+      #device_id_input {
+         width: 20;
+         margin-left: 1;
+      }
+   }
+
+   .dialog-select-label {
+      text-align: right;
+      width: 16;
+      padding: 1 2;
+   }
+
+   .dialog-select {
+      width: 20;
+      max-width: 40;
+   }
+
+   .current-config-label {
+      width: 20;
+      padding: 1 2;
+      color: $text-secondary;
+   }
+
+   .select-label {
+      text-align: left;
+      width: 16;
+      padding: 1 2;
+   }
+
+   Button {
+      margin-left: 4;
+      margin-right: 4;
+   }
+
+   .invalid {
+      border: heavy red;
+      color: red;
+   }
+}
