@@ -1,8 +1,8 @@
 from enum import Enum, auto
 
 from textual.screen import ModalScreen
-from textual.widgets import Label, Button, Static
-from textual.containers import Vertical, Horizontal
+from textual.widgets import Label, Button, Static, ListView, ListItem
+from textual.containers import Vertical, Horizontal, HorizontalScroll
 from textual.reactive import reactive
 
 from rtu_guardian.ui.app import RTUGuardian
@@ -10,7 +10,6 @@ from rtu_guardian.devices.device import DeviceScanner, DeviceState
 from rtu_guardian.modbus.agent import ModbusAgent
 
 from rtu_guardian.constants import RECOVERY_ID
-
 
 
 class ScanState(Enum):
@@ -22,15 +21,14 @@ class ScanState(Enum):
     UNKNOWN = auto()
     NOT_FOUND = auto()
 
-LEGEND = """
-    Not scanned: [grey39]■[/grey39]
-    Presumed   : [orange]✔[/orange]
-    Found      : [green]✔[/green]
-    Confirmed  : [blue]✔[/blue]
-    Infirmined : [red]✖[/red]
-    Unknown    : [yellow]?[/yellow]
-    No reply   : [gray]·[/gray]
-"""
+
+LEGEND = """Not scanned: [grey39]■[/grey39]
+Presumed   : [orange]✔[/orange]
+Found      : [green]✔[/green]
+Confirmed  : [blue]✔[/blue]
+Infirmined : [red]✖[/red]
+Unknown    : [yellow]?[/yellow]
+No reply   : [gray]·[/gray]"""
 
 class ScanCell(Static):
     state = reactive(ScanState.NOT_SCANNED)
@@ -138,6 +136,8 @@ class ScanDialog(ModalScreen):
                     Button("Update", id="update"),
                     classes="dialog-buttons"
                 )
+            with HorizontalScroll(id="scan-log-container"):
+                yield ListView(id="scan-log")
 
     async def on_button_pressed(self, event):
         if event.button.id == "close":
@@ -190,6 +190,10 @@ class ScanDialog(ModalScreen):
                 scan_matrix.update_cell(self.scanning_address, ScanState.UNKNOWN)
             else:
                 scan_matrix.update_cell(self.scanning_address, ScanState.CONFIRMED)
+
+            # Add to the list view
+            list_view: ListView = self.query_one("#scan-log")
+            list_view.append(ListItem(Label(f"ID={self.scanning_address:3}: {status_text}")))
         elif state == DeviceState.UNKNOWN:
             scan_matrix.update_cell(self.scanning_address, ScanState.UNKNOWN)
         elif state == DeviceState.NO_REPLY:

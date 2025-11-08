@@ -16,7 +16,7 @@ from rtu_guardian.constants import (
 from pymodbus.pdu.mei_message import ReadDeviceInformationResponse
 
 from .factory import factory, DiscoveredDevice
-import re
+
 
 logger = Logger("device")
 
@@ -128,8 +128,8 @@ class DeviceScanner:
         """ The device replied, but our factory cannot identify """
         # Decode the PDU
         self.device_info["id"] = pdu.identifier[0]
-        name = pdu.identifier[2:]
-        self.device_info["name"] = name.decode("ascii", errors="ignore")
+        name = pdu.identifier[2:].decode('ascii').strip()
+        self.device_info["name"] = name
 
         # Pass the ID and name to the factory
         self.candidates = factory.match(self.candidates, type="id", **self.device_info)
@@ -143,7 +143,7 @@ class DeviceScanner:
             self.device_typeid = device.type
             self.stage = ScannerStage.DONE
             self.state = DeviceState.IDENTIFIED
-            self.status_text = f"Identified as {name} ({device.type})"
+            self.status_text = f"Id: {name} ({device.type})"
             self.device_view.on_update_status(self.state, self.status_text, True)
 
     def _on_device_id_error(self, exception_code: int = 0):
@@ -213,4 +213,3 @@ class DeviceScanner:
             self.state = DeviceState.UNKNOWN
 
         self.device_view.on_update_status(self.state, self.status_text, True)
-
