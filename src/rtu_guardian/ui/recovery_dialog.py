@@ -154,7 +154,7 @@ class RecoveryScanningDialog(ModalScreen):
         self.query_one("#recovery-dialog").border_title = "Searching for device in recovery mode"
 
         # Delay a bit to show the screen content before starting scan
-        await asyncio.sleep(1)
+        await asyncio.sleep(2)
 
         # Initialize start time
         self.start_time = time.time()
