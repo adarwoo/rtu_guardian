@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import sys
 
 from pathlib import Path
 
@@ -24,18 +25,34 @@ class TextualLogHandler(logging.Handler):
         # Send into Textual log panel
         self.app.log(f"[pymodbus] {msg}")
 
+def get_resource_path(relative_path):
+    """ Get absolute path to resource, works for dev and for PyInstaller """
+    if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
+        # Running in PyInstaller bundle
+        base_path = Path(sys._MEIPASS)
+    else:
+        # Running in normal Python environment
+        base_path = Path(__file__).parent.parent
+
+    return base_path / relative_path
+
 def get_css_path():
     """ Scan the devices subdirectory for all .tcss files and add them to CSS_PATH """
-    css_dir = Path(__file__).parent / "css"
-    css_path = [str(css_dir / "main.tcss")]
+    css_path = []
 
-    devices_dir = Path(__file__).parent.parent / "devices"
-    assert(devices_dir.exists())
+    # Add main CSS file
+    main_css = get_resource_path("rtu_guardian/ui/css/main.tcss")
+    if main_css.exists():
+        css_path.append(str(main_css))
 
-    for subdir in devices_dir.iterdir():
-        if subdir.is_dir():
-            for file in subdir.glob("*.tcss"):
-                css_path.append(str(file))
+    # Get devices directory
+    devices_dir = get_resource_path("rtu_guardian/devices")
+
+    if devices_dir.exists():
+        for subdir in devices_dir.iterdir():
+            if subdir.is_dir():
+                for file in subdir.glob("*.tcss"):
+                    css_path.append(str(file))
 
     return css_path
 
@@ -65,10 +82,7 @@ class RTUGuardian(App):
     def __init__(self):
         super().__init__()
 
-        # Send requests to the agent
-        self.requests = asyncio.Queue()
-
-        self.modbus_agent = ModbusAgent(self.requests, self.on_connection_status)
+        self.modbus_agent = ModbusAgent(self.on_connection_status)
 
         # TabContent that holds all device panes
         self.tab_content = TabbedContent(id="devices")
@@ -149,9 +163,15 @@ class RTUGuardian(App):
         from rtu_guardian.ui.recovery_dialog import RecoveryScanningDialog
 
         # Stop the current agent - and close the connection
+
         if self._worker:
-            self._worker.cancel()
+            # Write None to the requests queue to signal the agent to close
+            self.modbus_agent.request(None)
+
+            # Wait for worker to finish
             await self._worker.wait()
+
+            # Discard worker handle
             self._worker = None
 
         # Create a new agent

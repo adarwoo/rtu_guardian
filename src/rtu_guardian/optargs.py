@@ -34,18 +34,43 @@ parser.add_option("-s", "--serial", dest="serial", default=None,
 parser.add_option("-z", "--zero", dest="zero", default=False, action="store_true",
     help="Start with no devices, ignoring devices from the previous session.")
 
-(options, args) = parser.parse_args()
+def parse_options():
+    """Parse command line options - must be called explicitly to avoid PyInstaller issues"""
+    (options, args) = parser.parse_args()
 
-# Validate device IDs from command line arguments
-device_ids = []
+    # Validate device IDs from command line arguments
+    device_ids = []
 
-for arg in args:
-    try:
-        device_id = int(arg)
+    for arg in args:
+        try:
+            device_id = int(arg)
 
-        if 1 <= device_id < RECOVERY_ID:
-            device_ids.append(device_id)
-        else:
-            parser.error(f"Invalid device ID: {arg}. Valid values are 1 to {RECOVERY_ID-1}.")
-    except ValueError:
-        parser.error(f"Invalid device ID: {arg}. Must be an integer between 1 and {RECOVERY_ID-1}.")
+            if 1 <= device_id < RECOVERY_ID:
+                device_ids.append(device_id)
+            else:
+                parser.error(f"Invalid device ID: {arg}. Valid values are 1 to {RECOVERY_ID-1}.")
+        except ValueError:
+            parser.error(f"Invalid device ID: {arg}. Must be an integer between 1 and {RECOVERY_ID-1}.")
+
+    return options, device_ids
+
+# Parse arguments at module import time, but catch errors during PyInstaller analysis
+import sys
+import os
+
+try:
+    # Try to parse arguments
+    options, device_ids = parse_options()
+except SystemExit as e:
+    # Re-raise if exit code is 0 (normal exit like --help)
+    if e.code == 0:
+        raise
+    # PyInstaller analysis passes invalid arguments - use defaults
+    class DummyOptions:
+        debug = False
+        comport = None
+        baudrate = None
+        serial = None
+        zero = False
+    options = DummyOptions()
+    device_ids = []

@@ -4,10 +4,9 @@ Exposes:
 - WIDGET: the widget/container class to instantiate for this device
 - match: function used by the factory/scanner to identify supported devices
 """
-from .pneumatic_device import PneumaticDevice
+from .pneumatic_hub_device import PneumaticHubDevice
 
-WIDGET = PneumaticDevice
-
+WIDGET = PneumaticHubDevice
 
 def match(*, id = 0, name = "") -> bool|None:
     """Called to identify if this device matches.
@@ -49,5 +48,5 @@ def match(*, id = 0, name = "") -> bool|None:
 
     return all([
         id == 49,
-        re.match(r"^pneumatic", name, re.IGNORECASE)
+        re.match(r"^PN-HUB", name, re.IGNORECASE)
     ])

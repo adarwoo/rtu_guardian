@@ -194,3 +194,33 @@ class WriteMultipleRegisters(Request):
             self.values,
             device_id=self.device_id
         )
+
+class CustomRequest(Request):
+    """
+    A custom Modbus request using a user-provided function.
+    The function should accept the client and device_id as parameters.
+    """
+    ADD_ARGS = {'pdu': None}
+
+    async def on_execute(self, client: AsyncModbusSerialClient):
+        if self.pdu is None:
+            raise ValueError("pdu must be provided for CustomRequest")
+
+        # Append device_id to the pdu if necessary
+        self.pdu.dev_id = self.device_id
+
+        return await client.execute(False, self.pdu)
+
+class ReadDiscreteInputs(Request):
+    ADD_ARGS = {'address': 0, 'count': 1}
+
+    """
+    Modbus Function Code 2
+    Read discrete inputs (digital inputs).
+    """
+    async def on_execute(self, client: AsyncModbusSerialClient):
+        return await client.read_discrete_inputs(
+            device_id=self.device_id,
+            address=self.address,
+            count=self.count
+        )

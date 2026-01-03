@@ -2,8 +2,8 @@ from logging import Logger
 
 from textual.widgets import TabPane, Tab
 from textual.reactive import reactive
-from textual.widgets import Button, LoadingIndicator, Label, TabbedContent
-from textual.containers import Vertical, Horizontal
+from textual.widgets import LoadingIndicator, TabbedContent
+from textual.containers import Vertical
 from textual.reactive import reactive
 
 from rtu_guardian.modbus.agent import ModbusAgent

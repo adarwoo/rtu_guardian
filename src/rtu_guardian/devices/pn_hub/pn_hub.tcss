@@ -1,0 +1,25 @@
+PneumaticHubDevice {
+   background: $boost;
+   height: 20;
+   width: 120;
+   margin: 1;
+   border: round $primary;
+   padding-top: 1;
+   padding-left: 2;
+
+   DataTable {
+      width: 35;
+      height: auto;
+   }
+
+   #pn-hub-ouptuts-grid, #pn-hub-inputs-grid {
+      height: 100%;
+      width: 34;
+      grid-columns: 1fr 10;
+      grid-size: 2 5;
+      grid-rows: auto;
+      Static {
+         padding-top: 1;
+      }
+   }
+}

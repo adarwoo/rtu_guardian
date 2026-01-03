@@ -12,11 +12,11 @@ from rtu_guardian.constants import MODBUS_TIMEOUT
 class ModbusAgent:
     def __init__(
         self,
-        requests: asyncio.Queue[Request],
         on_connection_status: callable,
         recovery_mode: bool=False
     ):
-        self.requests = requests
+        # Send requests to the agent
+        self.requests = asyncio.Queue()
         self.client: AsyncModbusSerialClient | None = None
         self._app = None
         self.on_connection_status = on_connection_status
@@ -25,6 +25,11 @@ class ModbusAgent:
     @property
     def connected(self):
         return self.client is not None and self.client.connected
+
+    def pause(self):
+        """Pause the agent by clearing the requests queue."""
+        while not self.requests.empty():
+            self.requests.get_nowait()
 
     async def _open_connection(self):
         """Run the connection attempt in a separate thread."""
@@ -79,6 +84,7 @@ class ModbusAgent:
                     await asyncio.sleep(1)
                     continue
 
+                # Read from the requests queue
                 request: Request = await self.requests.get()
 
                 if request is None:  # Sentinel to stop
@@ -97,6 +103,13 @@ class ModbusAgent:
                 self.client.close()
         except Exception as e:
             logger.error(f"ModbusAgent encountered an error: {e}")
+
+        # Exiting - close the client connection gracefully
+        try:
+            if self.client is not None and self.client.connected:
+                await self.client.close()
+        except Exception as e:
+            logger.error(f"Error closing Modbus client: {e}")
 
     def request(self, request: Request):
         if self.client.connected:

@@ -48,11 +48,8 @@ class RecoveryScanningDialog(ModalScreen):
     def __init__(self):
         super().__init__()
 
-        # Send requests to the agent
-        self.requests = asyncio.Queue()
-
         # Create a Modbus agent in recovery mode
-        self.modbus_agent = ModbusAgent(self.requests, self.on_connection_status, True)
+        self.modbus_agent = ModbusAgent(self.on_connection_status, True)
 
         # Start the worker to cancel on dismiss
         self._worker = None
@@ -81,8 +78,8 @@ class RecoveryScanningDialog(ModalScreen):
 
     async def on_button_pressed(self, event):
         if event.button.id == "cancel":
-            if self._worker:
-                self._worker.cancel()
+            self.modbus_agent.request(None)
+            await self._worker.wait()
             self.dismiss(None)
         elif event.button.id == "recover":
             # Hide recover button to prevent multiple clicks
@@ -152,9 +149,6 @@ class RecoveryScanningDialog(ModalScreen):
 
     async def on_mount(self):
         self.query_one("#recovery-dialog").border_title = "Searching for device in recovery mode"
-
-        # Delay a bit to show the screen content before starting scan
-        await asyncio.sleep(2)
 
         # Initialize start time
         self.start_time = time.time()
@@ -257,7 +251,7 @@ class RecoveryScanningDialog(ModalScreen):
         # Device found and identified - stop retrying
         loading.visible = False
 
-        if self.rh.supported:
+        if self.rh.info["supported"]:
             self.query_one("#recovery-dialog").border_title = (
                 f"Recovery Mode: Recoverable device found"
             )
